@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: siged_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  db_cursos:
+    image: postgres:15-alpine
+    container_name: siged_db_cursos
+    environment:
+      POSTGRES_DB: cursos_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+
+  db_inscripciones:
+    image: postgres:15-alpine
+    container_name: siged_db_inscripciones
+    environment:
+      POSTGRES_DB: inscripciones_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+
+  db_evaluaciones:
+    image: postgres:15-alpine
+    container_name: siged_db_evaluaciones
+    environment:
+      POSTGRES_DB: evaluaciones_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+
+  db_notificaciones:
+    image: postgres:15-alpine
+    container_name: siged_db_notificaciones
+    environment:
+      POSTGRES_DB: notificaciones_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+
+  ms-cursos:
+    build: ./ms-cursos
+    container_name: siged_ms_cursos
+    environment:
+      - DB_HOST=db_cursos
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - db_cursos
+      - rabbitmq
+
+  ms-inscripciones:
+    build: ./ms-inscripciones
+    container_name: siged_ms_inscripciones
+    environment:
+      - DB_HOST=db_inscripciones
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - db_inscripciones
+      - rabbitmq
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: siged_api_gateway
+    ports:
+      - "4000:4000"
+    depends_on:
+      - ms-cursos
+      - ms-inscripciones
