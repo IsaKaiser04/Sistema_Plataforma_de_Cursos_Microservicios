@@ -1,3 +1,7 @@
 FROM node:18-alpine
 WORKDIR /app
-CMD ["echo", "ms-notificaciones listo"]
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]

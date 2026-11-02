@@ -1,0 +1,22 @@
+services:
+  db-notificaciones:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: notificaciones
+    volumes:
+      - notificaciones_data:/var/lib/postgresql/data
+
+  ms-notificaciones:
+    build: .
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db-notificaciones
+    ports:
+      - "8004:3000"
+
+volumes:
+  notificaciones_data:
