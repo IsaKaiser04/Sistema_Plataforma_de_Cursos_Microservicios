@@ -43,6 +43,8 @@ services:
   ms-cursos:
     build: ./ms-cursos
     container_name: siged_ms_cursos
+    ports:
+      - "8081:8081"
     environment:
       - DB_HOST=db_cursos
       - RABBITMQ_HOST=rabbitmq
