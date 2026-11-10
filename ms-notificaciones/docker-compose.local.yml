@@ -1,20 +1,30 @@
 services:
   db-notificaciones:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: pass
       POSTGRES_DB: notificaciones
+    ports:
+      - "5433:5432" # 5433 en el host para no chocar con la BD de ms-cursos
     volumes:
       - notificaciones_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d notificaciones"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   ms-notificaciones:
     build: .
+    restart: unless-stopped
     env_file: .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - db-notificaciones
+      db-notificaciones:
+        condition: service_healthy
     ports:
       - "8004:3000"
 
