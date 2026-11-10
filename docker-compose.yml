@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   rabbitmq:
@@ -16,11 +15,11 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
 
-  db_inscripciones:
+  db_usuarios:
     image: postgres:15-alpine
-    container_name: siged_db_inscripciones
+    container_name: siged_db_usuarios
     environment:
-      POSTGRES_DB: inscripciones_db
+      POSTGRES_DB: usuarios_db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
 
@@ -52,14 +51,16 @@ services:
       - db_cursos
       - rabbitmq
 
-  ms-inscripciones:
-    build: ./ms-inscripciones
-    container_name: siged_ms_inscripciones
+  ms-usuarios:
+    build: ./ms-usuarios
+    container_name: siged_ms_usuarios
     environment:
-      - DB_HOST=db_inscripciones
-      - RABBITMQ_HOST=rabbitmq
+      - DB_HOST=db_usuarios
+      - POSTGRES_DB=usuarios_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
     depends_on:
-      - db_inscripciones
+      - db_usuarios
       - rabbitmq
 
   api-gateway:
@@ -68,5 +69,4 @@ services:
     ports:
       - "4000:4000"
     depends_on:
-      - ms-cursos
-      - ms-inscripciones
+      - ms-usuarios
