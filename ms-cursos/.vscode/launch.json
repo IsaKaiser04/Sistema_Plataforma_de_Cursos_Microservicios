@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run ms-cursos (Dev Local)",
+      "request": "launch",
+      "mainClass": "ec.edu.unl.lms.cursos.MsCursosApplication",
+      "projectName": "ms-cursos",
+      "args": "--spring.profiles.active=dev",
+      "env": {
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_NAME": "cursos_db",
+        "DB_USER": "admin",
+        "DB_PASSWORD": "password",
+        "RABBITMQ_HOST": "localhost",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest"
+      }
+    }
+  ]
+}

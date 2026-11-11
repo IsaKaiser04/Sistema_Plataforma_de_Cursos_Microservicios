@@ -1,0 +1,76 @@
+# PC A (Isauro): RabbitMQ compartido + ms-usuarios con su base.
+# ms-cursos corre en otra computadora (docker-compose.pc-cursos.yml).
+#
+#   IP_CURSOS=<ip de la PC de cursos> docker compose -f docker-compose.pc-usuarios.yml up -d --build
+#
+# Puertos que la otra PC necesita alcanzar aquí: 5672 (RabbitMQ) y 3004 (ms-usuarios).
+# Panel de RabbitMQ: http://localhost:15672 (lms / lms123)
+name: lms-pc-usuarios
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: lms_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: lms
+      RABBITMQ_DEFAULT_PASS: lms123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db_usuarios:
+    image: postgres:16-alpine
+    container_name: lms_db_usuarios
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: usuarios_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    volumes:
+      - usuarios_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d usuarios_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ms-usuarios:
+    build: ./ms-usuarios
+    container_name: lms_ms_usuarios
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: 3004
+      DB_HOST: db_usuarios
+      DB_PORT: 5432
+      POSTGRES_DB: usuarios_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      JWT_SECRET: secreto_local_cambiar
+      RABBIT_URL: amqp://lms:lms123@rabbitmq:5672
+      RABBIT_EXCHANGE: lms.eventos.exchange
+      # ms-cursos en la otra computadora
+      CURSOS_URL: http://${IP_CURSOS:?Falta IP_CURSOS, la IP de la PC donde corre ms-cursos}:8081
+      CURSOS_TIMEOUT_MS: 3000
+      ADMIN_EMAIL: admin@unl.edu.ec
+      ADMIN_PASSWORD: admin123
+    depends_on:
+      db_usuarios:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  # La misma base que ya tienes (no se pierden los usuarios)
+  usuarios_data:
+    external: true
+    name: ms-usuarios_postgres_usuarios_data

@@ -13,6 +13,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   db_cursos:
     image: postgres:15-alpine
@@ -21,14 +22,28 @@ services:
       POSTGRES_DB: cursos_db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d cursos_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
-  db_inscripciones:
+  db_usuarios:
     image: postgres:15-alpine
-    container_name: siged_db_inscripciones
+    container_name: siged_db_usuarios
     environment:
-      POSTGRES_DB: inscripciones_db
+      POSTGRES_DB: usuarios_db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
+    volumes:
+      - db_usuarios_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d usuarios_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   db_evaluaciones:
     image: postgres:15-alpine
@@ -44,47 +59,96 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  db_notificaciones:
-    image: postgres:15-alpine
-    container_name: siged_db_notificaciones
-    environment:
-      POSTGRES_DB: notificaciones_db
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
+    restart: unless-stopped
 
   ms-cursos:
     build: ./ms-cursos
     container_name: siged_ms_cursos
+    ports:
+      - "127.0.0.1:8081:8081"
     environment:
-      - DB_HOST=db_cursos
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=${RABBITMQ_USER:-lms}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-lms123}
+      DB_HOST: db_cursos
+      DB_PORT: 5432
+      DB_NAME: cursos_db
+      DB_USER: admin
+      DB_PASSWORD: password
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-lms}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-lms123}
+      USUARIOS_SERVICE_URL: http://ms-usuarios:3004
+      USUARIOS_SERVICE_MOCK: "false"
     depends_on:
-      - db_cursos
-      - rabbitmq
+      db_cursos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ms-usuarios:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    restart: unless-stopped
 
-  ms-inscripciones:
-    build: ./ms-inscripciones
-    container_name: siged_ms_inscripciones
+  ms-usuarios:
+    build: ./ms-usuarios
+    container_name: siged_ms_usuarios
+    ports:
+      - "127.0.0.1:3004:3004"
     environment:
-      - DB_HOST=db_inscripciones
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=${RABBITMQ_USER:-lms}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-lms123}
+      PORT: 3004
+      DB_HOST: db_usuarios
+      DB_PORT: 5432
+      POSTGRES_DB: usuarios_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      JWT_SECRET: ${JWT_SECRET:-secreto_local_cambiar}
+      RABBIT_URL: amqp://${RABBITMQ_USER:-lms}:${RABBITMQ_PASSWORD:-lms123}@rabbitmq:5672
+      RABBIT_EXCHANGE: lms.eventos.exchange
+      CURSOS_URL: http://ms-cursos:8081
+      CURSOS_TIMEOUT_MS: 3000
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@unl.edu.ec}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
     depends_on:
-      - db_inscripciones
-      - rabbitmq
+      db_usuarios:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3004/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
 
   api-gateway:
     build: ./api-gateway
     container_name: siged_api_gateway
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
+    environment:
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET:-secreto_local_cambiar}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      USUARIOS_URL: http://ms-usuarios:3004
+      CURSOS_URL: http://ms-cursos:8081
+      EVALUACIONES_URL: http://ms-evaluaciones:8083
     depends_on:
-      - ms-cursos
-      - ms-inscripciones
+      ms-usuarios:
+        condition: service_healthy
+      ms-cursos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
 
   ms-evaluaciones:
     profiles: ["evaluaciones"]
@@ -111,12 +175,15 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      ms-cursos:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 45s
+    restart: unless-stopped
 
   prototipo-evaluaciones:
     profiles: ["prototipo-evaluaciones"]
@@ -129,4 +196,5 @@ services:
         condition: service_healthy
 
 volumes:
+  db_usuarios_data:
   db_evaluaciones_data:

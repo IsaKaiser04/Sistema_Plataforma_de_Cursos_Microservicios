@@ -1,0 +1,50 @@
+services:
+  db_cursos:
+    image: postgres:16-alpine
+    container_name: lms_db_cursos
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cursos_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_cursos_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d cursos_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: lms_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  ms-cursos:
+    build: .
+    container_name: lms_ms_cursos
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - DB_HOST=db_cursos
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+    depends_on:
+      db_cursos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+volumes:
+  postgres_cursos_data:

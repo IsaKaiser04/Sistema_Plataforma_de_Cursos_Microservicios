@@ -1,0 +1,186 @@
+# Contrato GraphQL entre el frontend y el api-gateway.
+# Cada integrante agrega aquí los tipos de su módulo (integracion.md, C1).
+# El gateway usa una copia en api-gateway/src/schema/schema.graphql: si cambias este archivo, cópialo allá.
+
+# ---------------------------------------------------------------
+# Módulo usuarios (Isauro) -> ms-usuarios
+# ---------------------------------------------------------------
+
+enum Rol {
+  ADMINISTRADOR
+  DOCENTE
+  ESTUDIANTE
+}
+
+enum EstadoInscripcion {
+  PENDIENTE
+  ACTIVA
+  RECHAZADA
+  CANCELADA
+  FINALIZADA
+}
+
+type Usuario {
+  id: ID!
+  email: String!
+  nombres: String!
+  apellidos: String!
+  rol: Rol!
+  activo: Boolean!
+}
+
+type AuthPayload {
+  token: String!
+  usuario: Usuario!
+}
+
+type Inscripcion {
+  id: ID!
+  cursoId: ID!
+  estudianteId: ID!
+  estado: EstadoInscripcion!
+  motivoRechazo: String
+  fechaInscripcion: String!
+  "Lo resuelve el módulo cursos. Es null si ms-cursos no responde."
+  curso: Curso
+}
+
+"Datos del docente que ms-usuarios entrega a otros servicios (DocenteExternoDto)"
+type Docente {
+  id: ID!
+  nombreCompleto: String!
+  correo: String!
+  activo: Boolean!
+}
+
+input RegistroInput {
+  nombres: String!
+  apellidos: String!
+  email: String!
+  password: String!
+}
+
+input CrearUsuarioInput {
+  nombres: String!
+  apellidos: String!
+  email: String!
+  password: String!
+  rol: Rol!
+}
+
+# ---------------------------------------------------------------
+# Módulo cursos (Cristian) -> ms-cursos
+# ---------------------------------------------------------------
+
+enum NivelCurso {
+  BASICO
+  INTERMEDIO
+  AVANZADO
+}
+
+enum EstadoCurso {
+  BORRADOR
+  PUBLICADO
+  EN_CURSO
+  FINALIZADO
+  ARCHIVADO
+}
+
+type Modulo {
+  id: ID!
+  titulo: String!
+  descripcion: String
+  orden: Int!
+  duracionMinutos: Int!
+  recursoUrl: String
+}
+
+type Curso {
+  id: ID!
+  codigo: String!
+  titulo: String!
+  descripcion: String
+  categoria: String!
+  nivel: NivelCurso!
+  estado: EstadoCurso!
+  docenteId: ID!
+  "Lo resuelve el módulo usuarios. Es null si el docente no existe en ms-usuarios."
+  docente: Docente
+  cupoMaximo: Int!
+  cuposDisponibles: Int!
+  duracionHoras: Int!
+  precio: Float!
+  modulos: [Modulo!]!
+  fechaCreacion: String
+  fechaActualizacion: String
+}
+
+input ModuloInput {
+  titulo: String!
+  descripcion: String
+  orden: Int!
+  duracionMinutos: Int!
+  recursoUrl: String
+}
+
+input CursoInput {
+  codigo: String!
+  titulo: String!
+  descripcion: String!
+  categoria: String!
+  nivel: NivelCurso!
+  docenteId: ID!
+  cupoMaximo: Int!
+  duracionHoras: Int!
+  precio: Float!
+  modulos: [ModuloInput!]
+}
+
+# ---------------------------------------------------------------
+# Operaciones
+# ---------------------------------------------------------------
+
+type Query {
+  # usuarios
+  "Usuario de la sesión actual"
+  me: Usuario!
+  "Solo ADMINISTRADOR"
+  usuarios(rol: Rol): [Usuario!]!
+  "Solo ESTUDIANTE"
+  misInscripciones: [Inscripcion!]!
+  "Solo DOCENTE o ADMINISTRADOR"
+  inscritosCurso(cursoId: ID!): [Inscripcion!]!
+
+  # cursos
+  "Cursos publicados o en curso, con cupo"
+  catalogoCursos: [Curso!]!
+  cursos(categoria: String, estado: EstadoCurso): [Curso!]!
+  curso(id: ID!): Curso
+  "Si no se manda docenteId, usa el usuario de la sesión"
+  misCursosDocente(docenteId: ID): [Curso!]!
+}
+
+type Mutation {
+  # usuarios
+  "Público"
+  login(email: String!, password: String!): AuthPayload!
+  "Público, siempre crea un ESTUDIANTE"
+  registro(input: RegistroInput!): Usuario!
+  "Solo ADMINISTRADOR, crea DOCENTE o ADMINISTRADOR"
+  crearUsuario(input: CrearUsuarioInput!): Usuario!
+  "Solo ADMINISTRADOR"
+  cambiarEstadoUsuario(id: ID!, activo: Boolean!): Usuario!
+  "Solo ESTUDIANTE"
+  inscribirse(cursoId: ID!): Inscripcion!
+  "Dueño de la inscripción o ADMINISTRADOR"
+  cancelarInscripcion(id: ID!): Inscripcion!
+
+  # cursos (los permisos los revisa ms-cursos con X-User-Id y X-User-Rol)
+  crearCurso(input: CursoInput!): Curso!
+  actualizarCurso(id: ID!, input: CursoInput!): Curso!
+  cambiarEstadoCurso(id: ID!, estado: EstadoCurso!): Curso!
+  agregarModulo(cursoId: ID!, input: ModuloInput!): Modulo!
+  actualizarModulo(cursoId: ID!, moduloId: ID!, input: ModuloInput!): Modulo!
+  eliminarModulo(cursoId: ID!, moduloId: ID!): Boolean!
+  eliminarCurso(id: ID!): Boolean!
+}
