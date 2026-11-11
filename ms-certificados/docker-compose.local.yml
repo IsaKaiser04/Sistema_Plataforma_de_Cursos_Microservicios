@@ -1,32 +1,33 @@
+# Postgres + este servicio. Usa el RabbitMQ que ya corre en el host (usuario lms).
 services:
-  db-notificaciones:
+  db_notificaciones:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: notificaciones
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: notificaciones_db
     ports:
       - "5433:5432" # 5433 en el host para no chocar con la BD de ms-cursos
     volumes:
-      - notificaciones_data:/var/lib/postgresql/data
+      - certificados_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d notificaciones"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d notificaciones_db"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  ms-notificaciones:
+  ms-certificados:
     build: .
     restart: unless-stopped
     env_file: .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      db-notificaciones:
+      db_notificaciones:
         condition: service_healthy
     ports:
       - "8004:3000"
 
 volumes:
-  notificaciones_data:
+  certificados_data:
