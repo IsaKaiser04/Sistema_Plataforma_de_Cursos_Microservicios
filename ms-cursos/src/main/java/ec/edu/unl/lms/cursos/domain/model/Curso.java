@@ -1,5 +1,6 @@
 package ec.edu.unl.lms.cursos.domain.model;
 
+import ec.edu.unl.lms.cursos.domain.exception.BusinessRuleException;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,10 +37,6 @@ public class Curso {
     @Column(name = "estado", nullable = false, length = 20)
     private EstadoCurso estado;
 
-    /**
-     * Referencia por UUID al docente en el servicio de Usuarios/Autenticacion.
-     * Nunca se usa ForeignKey SQL hacia otros microservicios (Database-per-Service).
-     */
     @Column(name = "docente_id", nullable = false)
     private UUID docenteId;
 
@@ -88,18 +85,31 @@ public class Curso {
         modulo.setCurso(this);
     }
 
+    public void transicionarEstado(EstadoCurso nuevoEstado) {
+        if (this.estado == null || !this.estado.puedeTransicionarA(nuevoEstado)) {
+            throw new BusinessRuleException(
+                    "TRANSICION_INVALIDA",
+                    "No se permite cambiar el estado de " + this.estado + " a " + nuevoEstado
+            );
+        }
+        this.estado = nuevoEstado;
+    }
+
+    public boolean aceptaInscripciones() {
+        return this.estado == EstadoCurso.PUBLICADO || this.estado == EstadoCurso.EN_CURSO;
+    }
+
     public boolean tieneCuposDisponibles() {
         return this.cuposDisponibles != null && this.cuposDisponibles > 0;
     }
 
     public boolean estaActivoParaInscripcion() {
-        return (this.estado == EstadoCurso.PUBLICADO || this.estado == EstadoCurso.EN_CURSO)
-                && tieneCuposDisponibles();
+        return aceptaInscripciones() && tieneCuposDisponibles();
     }
 
     public void descontarCupo() {
         if (!tieneCuposDisponibles()) {
-            throw new IllegalStateException("No quedan cupos disponibles para el curso " + this.codigo);
+            throw new BusinessRuleException("CUPO_AGOTADO", "No quedan cupos disponibles para el curso " + this.codigo);
         }
         this.cuposDisponibles = this.cuposDisponibles - 1;
     }
@@ -110,46 +120,32 @@ public class Curso {
         }
     }
 
-    // Getters y Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
-
     public String getCodigo() { return codigo; }
     public void setCodigo(String codigo) { this.codigo = codigo; }
-
     public String getTitulo() { return titulo; }
     public void setTitulo(String titulo) { this.titulo = titulo; }
-
     public String getDescripcion() { return descripcion; }
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
-
     public String getCategoria() { return categoria; }
     public void setCategoria(String categoria) { this.categoria = categoria; }
-
     public NivelCurso getNivel() { return nivel; }
     public void setNivel(NivelCurso nivel) { this.nivel = nivel; }
-
     public EstadoCurso getEstado() { return estado; }
     public void setEstado(EstadoCurso estado) { this.estado = estado; }
-
     public UUID getDocenteId() { return docenteId; }
     public void setDocenteId(UUID docenteId) { this.docenteId = docenteId; }
-
     public Integer getCupoMaximo() { return cupoMaximo; }
     public void setCupoMaximo(Integer cupoMaximo) { this.cupoMaximo = cupoMaximo; }
-
     public Integer getCuposDisponibles() { return cuposDisponibles; }
     public void setCuposDisponibles(Integer cuposDisponibles) { this.cuposDisponibles = cuposDisponibles; }
-
     public Integer getDuracionHoras() { return duracionHoras; }
     public void setDuracionHoras(Integer duracionHoras) { this.duracionHoras = duracionHoras; }
-
     public BigDecimal getPrecio() { return precio; }
     public void setPrecio(BigDecimal precio) { this.precio = precio; }
-
     public List<Modulo> getModulos() { return modulos; }
     public void setModulos(List<Modulo> modulos) { this.modulos = modulos; }
-
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
 }

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { evaluacionService } from '../services/evaluacionService';
-import { cursoService } from '../services/cursoService';
+import { cursoService } from '../services/cursoServices';
 
 export const CrearEvaluacion = ({ onEvaluacionCreada }) => {
   const [titulo, setTitulo] = useState('');
-  const [calificacionMinima, setCalificacionMinima] = useState('3.0');
+  const [calificacionMinima, setCalificacionMinima] = useState('7.0');
   const [cursos, setCursos] = useState([]);
   const [cursoIdSeleccionado, setCursoIdSeleccionado] = useState('');
   const [estudianteId] = useState('b1b2b3b4-1111-2222-3333-444455556666');
@@ -57,6 +57,7 @@ export const CrearEvaluacion = ({ onEvaluacionCreada }) => {
             value={cursoIdSeleccionado} 
             onChange={(e) => setCursoIdSeleccionado(e.target.value)}
             style={{ width: '100%', padding: '8px' }}
+            required
           >
             {cursos.map(curso => (
               <option key={curso.id} value={curso.id}>
@@ -71,6 +72,8 @@ export const CrearEvaluacion = ({ onEvaluacionCreada }) => {
           <input
             type="number"
             step="0.1"
+            min="7"
+            max="10"
             value={calificacionMinima}
             onChange={(e) => setCalificacionMinima(e.target.value)}
             style={{ width: '100%', padding: '8px' }}

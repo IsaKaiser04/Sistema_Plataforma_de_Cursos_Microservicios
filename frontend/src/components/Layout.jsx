@@ -8,15 +8,22 @@ const NOMBRE_ROL = {
   ESTUDIANTE: 'Estudiante',
 };
 
-// Menú según el rol. Cada integrante agrega aquí las pantallas de su módulo
-// cuando existan (catálogo, mis cursos, evaluaciones, notificaciones...).
+const TODOS = ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'];
+
+// Menú según el rol. Cada integrante agrega aquí las pantallas de su módulo.
 const MENU = [
-  { ruta: '/', texto: 'Inicio', roles: ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'] },
-  // Módulo notificaciones y certificados (María)
+  { ruta: '/', texto: 'Inicio', roles: TODOS },
+  // cursos (Cristian)
+  { ruta: '/cursos', texto: 'Catálogo', roles: TODOS },
+  { ruta: '/docente/cursos', texto: 'Gestión de cursos', roles: ['DOCENTE', 'ADMINISTRADOR'] },
+  { ruta: '/docente/cursos/nuevo', texto: 'Nuevo curso', roles: ['DOCENTE', 'ADMINISTRADOR'] },
+  // usuarios (Isauro)
+  { ruta: '/mis-cursos', texto: 'Mis cursos', roles: ['ESTUDIANTE'] },
+  { ruta: '/admin/usuarios', texto: 'Usuarios', roles: ['ADMINISTRADOR'] },
+  // notificaciones y certificados (María)
   { ruta: '/notificaciones', texto: 'Notificaciones', roles: ['ESTUDIANTE'] },
   { ruta: '/mis-certificados', texto: 'Mis certificados', roles: ['ESTUDIANTE'] },
 ];
-
 export default function Layout() {
   const { usuario, cerrarSesion } = useSesion();
   const opciones = MENU.filter((o) => o.roles.includes(usuario.rol));

@@ -1,0 +1,48 @@
+# PC B (Cristian): ms-cursos con su base. Usa el RabbitMQ y el ms-usuarios de la PC A.
+#
+#   IP_USUARIOS=<ip de la PC de usuarios> docker compose -f docker-compose.pc-cursos.yml up -d --build
+#
+# Puerto que la otra PC necesita alcanzar aquí: 8081 (ms-cursos).
+name: lms-pc-cursos
+
+services:
+  db_cursos:
+    image: postgres:16-alpine
+    container_name: lms_db_cursos
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cursos_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - cursos_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d cursos_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ms-cursos:
+    build: ./ms-cursos
+    container_name: lms_ms_cursos
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: db_cursos
+      # RabbitMQ y ms-usuarios están en la otra computadora
+      RABBITMQ_HOST: ${IP_USUARIOS:?Falta IP_USUARIOS, la IP de la PC donde corre ms-usuarios}
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: lms
+      RABBITMQ_PASSWORD: lms123
+      USUARIOS_SERVICE_MOCK: "false"
+      USUARIOS_SERVICE_URL: http://${IP_USUARIOS}:3004
+    depends_on:
+      db_cursos:
+        condition: service_healthy
+
+volumes:
+  cursos_data:

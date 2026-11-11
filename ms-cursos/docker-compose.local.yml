@@ -1,7 +1,7 @@
 services:
   db_cursos:
-    image: postgres:15-alpine
-    container_name: siged_db_cursos
+    image: postgres:16-alpine
+    container_name: lms_db_cursos
     restart: unless-stopped
     environment:
       POSTGRES_DB: cursos_db
@@ -18,22 +18,28 @@ services:
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: siged_rabbitmq
+    image: rabbitmq:3.13-management-alpine
+    container_name: lms_rabbitmq
     restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     ports:
       - "5672:5672"
       - "15672:15672"
 
   ms-cursos:
     build: .
-    container_name: siged_ms_cursos
+    container_name: lms_ms_cursos
     restart: unless-stopped
     ports:
       - "8081:8081"
     environment:
+      - SPRING_PROFILES_ACTIVE=dev
       - DB_HOST=db_cursos
       - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
     depends_on:
       db_cursos:
         condition: service_healthy

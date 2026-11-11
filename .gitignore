@@ -17,3 +17,5 @@ coverage/
 
 # Copias de trabajo de Claude Code
 .claude/worktrees/
+node_modules/
+target/

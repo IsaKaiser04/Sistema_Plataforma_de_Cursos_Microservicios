@@ -5,5 +5,18 @@ public enum EstadoCurso {
     PUBLICADO,
     EN_CURSO,
     FINALIZADO,
-    ARCHIVADO
+    ARCHIVADO;
+
+    public boolean puedeTransicionarA(EstadoCurso destino) {
+        if (destino == null || this == destino) {
+            return false;
+        }
+        return switch (this) {
+            case BORRADOR -> destino == PUBLICADO;
+            case PUBLICADO -> destino == BORRADOR || destino == EN_CURSO;
+            case EN_CURSO -> destino == FINALIZADO;
+            case FINALIZADO -> destino == ARCHIVADO;
+            case ARCHIVADO -> false;
+        };
+    }
 }
