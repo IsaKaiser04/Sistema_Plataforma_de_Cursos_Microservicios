@@ -11,6 +11,8 @@ public record CalificacionResponse(
         UUID cursoId,
         String tituloEvaluacion,
         BigDecimal nota,
+        BigDecimal notaMinima,
+        boolean aprobado,
         String retroalimentacion,
         UUID calificadoPor,
         LocalDateTime fechaCalificacion

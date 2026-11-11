@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -31,4 +32,8 @@ public class CursoLocal {
 
     @Column(name = "docente_id")
     private UUID docenteId;
+
+    @Column(name = "nota_minima", nullable = false, precision = 4, scale = 2,
+            columnDefinition = "numeric(4,2) default 7.00")
+    private BigDecimal notaMinima = new BigDecimal("7.00");
 }

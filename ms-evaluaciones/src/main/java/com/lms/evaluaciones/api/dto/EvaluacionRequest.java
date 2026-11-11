@@ -6,9 +6,12 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record EvaluacionRequest(
@@ -20,6 +23,7 @@ public record EvaluacionRequest(
         @DecimalMin("0.01") @DecimalMax("10.00") BigDecimal notaMaxima,
         @NotNull LocalDateTime fechaApertura,
         @NotNull LocalDateTime fechaCierre,
-        UUID moduloId
+        UUID moduloId,
+        @NotEmpty List<@Valid PreguntaInput> preguntas
 ) {
 }

@@ -8,6 +8,8 @@ import org.hibernate.annotations.Check;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -56,10 +58,22 @@ public class Evaluacion {
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
 
+    @OneToMany(mappedBy = "evaluacion", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orden ASC")
+    private List<PreguntaEvaluacion> preguntas = new ArrayList<>();
+
     @PrePersist
     void prePersist() {
         if (fechaCreacion == null) {
             fechaCreacion = LocalDateTime.now();
         }
+    }
+
+    public void reemplazarPreguntas(List<PreguntaEvaluacion> nuevasPreguntas) {
+        preguntas.clear();
+        nuevasPreguntas.forEach(pregunta -> {
+            pregunta.setEvaluacion(this);
+            preguntas.add(pregunta);
+        });
     }
 }

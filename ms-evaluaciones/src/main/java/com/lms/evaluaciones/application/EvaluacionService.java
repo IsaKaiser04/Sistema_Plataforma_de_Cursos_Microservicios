@@ -25,6 +25,7 @@ public class EvaluacionService {
 
     private final EvaluacionRepository evaluaciones;
     private final CalificacionRepository calificaciones;
+    private final EntregaEvaluacionRepository entregas;
     private final EstudianteHabilitadoRepository estudiantes;
     private final CursoLocalRepository cursos;
     private final NotaFinalRepository notasFinales;
@@ -35,6 +36,7 @@ public class EvaluacionService {
 
     public EvaluacionService(EvaluacionRepository evaluaciones,
                             CalificacionRepository calificaciones,
+                            EntregaEvaluacionRepository entregas,
                             EstudianteHabilitadoRepository estudiantes,
                             CursoLocalRepository cursos,
                             NotaFinalRepository notasFinales,
@@ -44,6 +46,7 @@ public class EvaluacionService {
                             @Value("${lms.evaluaciones.nota-minima:7.0}") BigDecimal notaMinima) {
         this.evaluaciones = evaluaciones;
         this.calificaciones = calificaciones;
+        this.entregas = entregas;
         this.estudiantes = estudiantes;
         this.cursos = cursos;
         this.notasFinales = notasFinales;
@@ -62,6 +65,7 @@ public class EvaluacionService {
 
         Evaluacion evaluacion = new Evaluacion();
         actualizar(evaluacion, request);
+        reemplazarPreguntas(evaluacion, request.preguntas());
         evaluacion.setEstado(EstadoEvaluacion.BORRADOR);
         return response(evaluaciones.save(evaluacion));
     }
@@ -105,6 +109,7 @@ public class EvaluacionService {
         validarFechas(request.fechaApertura(), request.fechaCierre());
         validarPeso(request.cursoId(), request.peso(), id);
         actualizar(evaluacion, request);
+        reemplazarPreguntas(evaluacion, request.preguntas());
         return response(evaluaciones.save(evaluacion));
     }
 
@@ -145,9 +150,14 @@ public class EvaluacionService {
                 .orElseThrow(() -> ApiException.conflicto("ESTUDIANTE_NO_HABILITADO",
                         "El estudiante no está habilitado en este curso"));
         if (request.nota().compareTo(BigDecimal.ZERO) < 0 ||
-                request.nota().compareTo(evaluacion.getNotaMaxima()) > 0) {
+                request.nota().compareTo(BigDecimal.TEN) > 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DATOS_INVALIDOS",
-                    "La nota debe estar entre 0 y " + evaluacion.getNotaMaxima());
+                    "La nota debe estar entre 0 y 10");
+        }
+        if (!evaluacion.getPreguntas().isEmpty()
+                && entregas.findByEvaluacionIdAndEstudianteId(evaluacionId, request.estudianteId()).isEmpty()) {
+            throw ApiException.conflicto("RESPUESTAS_PENDIENTES",
+                    "El estudiante debe entregar sus respuestas antes de recibir una calificación");
         }
 
         Calificacion calificacion = calificaciones
@@ -161,6 +171,68 @@ public class EvaluacionService {
         calificacion = calificaciones.save(calificacion);
         publicarEventoCalificacion(evaluacion, calificacion);
         return response(calificacion, evaluacion);
+    }
+
+    @Transactional
+    public EntregaResponse entregar(UUID evaluacionId, EntregaRequest request, Actor actor) {
+        if (!actor.isStudent()) {
+            throw ApiException.prohibido("Solo un estudiante puede entregar respuestas");
+        }
+        Evaluacion evaluacion = buscarEvaluacion(evaluacionId);
+        validarAccesoCurso(evaluacion.getCursoId(), actor);
+        if (evaluacion.getEstado() != EstadoEvaluacion.PUBLICADA) {
+            throw ApiException.conflicto("EVALUACION_CERRADA", "La evaluación no está abierta para responder");
+        }
+        LocalDateTime ahora = LocalDateTime.now();
+        if (ahora.isBefore(evaluacion.getFechaApertura()) || ahora.isAfter(evaluacion.getFechaCierre())) {
+            throw ApiException.conflicto("FUERA_DE_PLAZO", "La evaluación no está dentro del periodo de entrega");
+        }
+        if (entregas.findByEvaluacionIdAndEstudianteId(evaluacionId, actor.id()).isPresent()) {
+            throw ApiException.conflicto("ENTREGA_YA_REALIZADA", "Ya enviaste tus respuestas; no se pueden editar");
+        }
+        Map<UUID, PreguntaEvaluacion> preguntas = evaluacion.getPreguntas().stream()
+                .collect(Collectors.toMap(PreguntaEvaluacion::getId, Function.identity()));
+        if (request.respuestas().size() != preguntas.size()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "DATOS_INVALIDOS",
+                    "Debes responder todas las preguntas de la evaluación");
+        }
+        Set<UUID> respondidas = new HashSet<>();
+        EntregaEvaluacion entrega = new EntregaEvaluacion();
+        entrega.setEvaluacionId(evaluacionId);
+        entrega.setEstudianteId(actor.id());
+        for (RespuestaInput input : request.respuestas()) {
+            PreguntaEvaluacion pregunta = preguntas.get(input.preguntaId());
+            if (pregunta == null || !respondidas.add(input.preguntaId())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "DATOS_INVALIDOS",
+                        "Las preguntas enviadas no corresponden a esta evaluación");
+            }
+            RespuestaEntrega respuesta = new RespuestaEntrega();
+            respuesta.setPreguntaId(pregunta.getId());
+            respuesta.setRespuesta(input.respuesta().trim());
+            respuesta.setOrden(pregunta.getOrden());
+            entrega.agregarRespuesta(respuesta);
+        }
+        return response(entregas.save(entrega), preguntas);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EntregaResponse> entregas(UUID evaluacionId, Actor actor) {
+        Evaluacion evaluacion = buscarEvaluacion(evaluacionId);
+        validarAccesoCurso(evaluacion.getCursoId(), actor);
+        if (actor.isStudent()) {
+            if (evaluacion.getEstado() == EstadoEvaluacion.BORRADOR) {
+                throw ApiException.noEncontrado("La evaluación no existe");
+            }
+            return entregas.findByEvaluacionIdAndEstudianteId(evaluacionId, actor.id())
+                    .stream()
+                    .map(entrega -> response(entrega, indexarPreguntas(evaluacion)))
+                    .toList();
+        }
+        validarDocenteAdministrador(obtenerCurso(evaluacion.getCursoId()), actor);
+        Map<UUID, PreguntaEvaluacion> preguntas = indexarPreguntas(evaluacion);
+        return entregas.findByEvaluacionIdOrderByFechaEntregaAsc(evaluacionId).stream()
+                .map(entrega -> response(entrega, preguntas))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -203,8 +275,25 @@ public class EvaluacionService {
 
     @Transactional(readOnly = true)
     public List<NotaFinalResponse> notasFinales(UUID cursoId, Actor actor) {
-        validarDocenteAdministrador(obtenerCurso(cursoId), actor);
-        return notasFinales.findByIdCursoIdOrderByNotaFinalDesc(cursoId).stream().map(this::response).toList();
+        CursoLocal curso = obtenerCurso(cursoId);
+        if (actor.isAdmin() || (actor.isTeacher() && actor.id().equals(curso.getDocenteId()))) {
+            return notasFinales.findByIdCursoIdOrderByNotaFinalDesc(cursoId).stream()
+                    .map(this::response)
+                    .toList();
+        }
+        if (actor.isStudent()) {
+            EstudianteHabilitadoId key = new EstudianteHabilitadoId(cursoId, actor.id());
+            boolean habilitado = estudiantes.findById(key)
+                    .filter(item -> item.getEstado() == EstadoHabilitacion.ACTIVO)
+                    .isPresent();
+            if (habilitado && "FINALIZADO".equals(curso.getEstado())) {
+                return notasFinales.findById(new NotaFinalId(cursoId, actor.id()))
+                        .stream()
+                        .map(this::response)
+                        .toList();
+            }
+        }
+        throw ApiException.prohibido("El usuario no tiene acceso a las notas finales de este curso");
     }
 
     @Transactional
@@ -258,6 +347,10 @@ public class EvaluacionService {
         curso.setTitulo(string(payload, "titulo", "tituloCurso"));
         curso.setEstado(string(payload, "estado"));
         curso.setDocenteId(nullableUuid(payload.get("docenteId")));
+        Object notaMinima = payload.get("notaMinima");
+        if (notaMinima != null) {
+            curso.setNotaMinima(new BigDecimal(notaMinima.toString()));
+        }
         cursos.save(curso);
         if ("FINALIZADO".equals(curso.getEstado())) {
             calcularNotasFinales(curso);
@@ -294,7 +387,7 @@ public class EvaluacionService {
             NotaFinal nota = new NotaFinal();
             nota.setId(key);
             nota.setNotaFinal(finalGrade);
-            nota.setAprobado(finalGrade.compareTo(notaMinima) >= 0);
+            nota.setAprobado(finalGrade.compareTo(umbralAprobacion(curso)) >= 0);
             nota.setFechaCalculo(LocalDateTime.now());
             notasFinales.save(nota);
             publicarEventoNotaFinal(curso, estudianteId, nota);
@@ -365,8 +458,7 @@ public class EvaluacionService {
         evaluacion.setDescripcion(request.descripcion());
         evaluacion.setTipo(request.tipo());
         evaluacion.setPeso(request.peso().setScale(2, RoundingMode.HALF_UP));
-        evaluacion.setNotaMaxima(request.notaMaxima() == null
-                ? BigDecimal.TEN : request.notaMaxima().setScale(2, RoundingMode.HALF_UP));
+        evaluacion.setNotaMaxima(BigDecimal.TEN);
         evaluacion.setFechaApertura(request.fechaApertura());
         evaluacion.setFechaCierre(request.fechaCierre());
         evaluacion.setModuloId(request.moduloId());
@@ -404,7 +496,7 @@ public class EvaluacionService {
         event.put("estudianteId", estudianteId);
         event.put("notaFinal", nota.getNotaFinal());
         event.put("aprobado", nota.isAprobado());
-        event.put("notaMinima", notaMinima);
+        event.put("notaMinima", umbralAprobacion(curso));
         producer.publicar("nota.final.calculada", event);
     }
 
@@ -443,17 +535,71 @@ public class EvaluacionService {
 
     private EvaluacionResponse response(Evaluacion e) {
         return new EvaluacionResponse(e.getId(), e.getCursoId(), e.getTitulo(), e.getDescripcion(), e.getTipo(),
-                e.getEstado(), e.getPeso(), e.getNotaMaxima(), e.getFechaApertura(), e.getFechaCierre(),
-                e.getModuloId(), e.getFechaCreacion());
+                e.getEstado(), e.getPeso(), BigDecimal.TEN, e.getFechaApertura(), e.getFechaCierre(),
+                e.getModuloId(), e.getFechaCreacion(), e.getPreguntas().stream()
+                .map(pregunta -> new PreguntaResponse(pregunta.getId(), pregunta.getEnunciado(), pregunta.getOrden()))
+                .toList());
     }
 
     private CalificacionResponse response(Calificacion c, Evaluacion e) {
+        BigDecimal minimo = umbralAprobacion(obtenerCurso(e.getCursoId()));
         return new CalificacionResponse(c.getId(), c.getEvaluacionId(), c.getEstudianteId(), e.getCursoId(),
-                e.getTitulo(), c.getNota(), c.getRetroalimentacion(), c.getCalificadoPor(), c.getFechaCalificacion());
+                e.getTitulo(), c.getNota(), minimo, c.getNota().compareTo(minimo) >= 0,
+                c.getRetroalimentacion(), c.getCalificadoPor(), c.getFechaCalificacion());
     }
 
     private NotaFinalResponse response(NotaFinal n) {
         return new NotaFinalResponse(n.getId().getCursoId(), n.getId().getEstudianteId(),
                 n.getNotaFinal(), n.isAprobado(), n.getFechaCalculo());
+    }
+
+    private void reemplazarPreguntas(Evaluacion evaluacion, List<PreguntaInput> preguntas) {
+        Set<Integer> ordenes = new HashSet<>();
+        preguntas.forEach(input -> {
+            if (!ordenes.add(input.orden())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "DATOS_INVALIDOS",
+                        "El orden de cada pregunta debe ser único");
+            }
+        });
+
+        Map<Integer, PreguntaEvaluacion> existentes = new HashMap<>();
+        for (PreguntaEvaluacion pregunta : evaluacion.getPreguntas()) {
+            existentes.put(pregunta.getOrden(), pregunta);
+            pregunta.setOrden(-pregunta.getOrden());
+        }
+        if (!existentes.isEmpty()) {
+            evaluaciones.flush();
+        }
+
+        List<PreguntaEvaluacion> nuevasPreguntas = preguntas.stream().map(input -> {
+            PreguntaEvaluacion pregunta = existentes.remove(input.orden());
+            if (pregunta == null) {
+                pregunta = new PreguntaEvaluacion();
+            }
+            pregunta.setEnunciado(input.enunciado().trim());
+            pregunta.setOrden(input.orden());
+            return pregunta;
+        }).toList();
+        evaluacion.reemplazarPreguntas(nuevasPreguntas);
+    }
+
+    private Map<UUID, PreguntaEvaluacion> indexarPreguntas(Evaluacion evaluacion) {
+        return evaluacion.getPreguntas().stream()
+                .collect(Collectors.toMap(PreguntaEvaluacion::getId, Function.identity()));
+    }
+
+    private EntregaResponse response(EntregaEvaluacion entrega, Map<UUID, PreguntaEvaluacion> preguntas) {
+        List<RespuestaResponse> respuestas = entrega.getRespuestas().stream().map(respuesta -> {
+            PreguntaEvaluacion pregunta = preguntas.get(respuesta.getPreguntaId());
+            return new RespuestaResponse(respuesta.getPreguntaId(),
+                    pregunta == null ? "Pregunta eliminada" : pregunta.getEnunciado(),
+                    respuesta.getRespuesta());
+        }).toList();
+        return new EntregaResponse(entrega.getId(), entrega.getEvaluacionId(), entrega.getEstudianteId(),
+                entrega.getFechaEntrega(), respuestas);
+    }
+
+    private BigDecimal umbralAprobacion(CursoLocal curso) {
+        return curso.getNotaMinima() == null ? notaMinima : curso.getNotaMinima();
     }
 }

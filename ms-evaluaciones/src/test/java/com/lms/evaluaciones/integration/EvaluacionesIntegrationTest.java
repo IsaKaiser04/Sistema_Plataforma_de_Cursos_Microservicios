@@ -134,7 +134,8 @@ class EvaluacionesIntegrationTest {
         accessEnabled.put("inscripcionId", inscripcionId.toString());
         accessEnabled.put("codigoCurso", "IT-01");
         accessEnabled.put("tituloCurso", "Curso de integración");
-        send("acceso.habilitado", accessEnabled);
+        sendWithTypeHeader("acceso.habilitado", accessEnabled,
+                "ec.edu.unl.lms.cursos.infrastructure.messaging.event.AccesoHabilitadoEvent");
         Map<String, Object> secondAccessEnabled = new LinkedHashMap<>(accessEnabled);
         secondAccessEnabled.put("eventoId", UUID.randomUUID().toString());
         secondAccessEnabled.put("estudianteId", segundoEstudianteId.toString());
@@ -153,8 +154,10 @@ class EvaluacionesIntegrationTest {
         evaluationRequest.put("descripcion", "Recorrido de extremo a extremo");
         evaluationRequest.put("tipo", "EXAMEN");
         evaluationRequest.put("peso", 100);
+        evaluationRequest.put("notaMaxima", 5);
         evaluationRequest.put("fechaApertura", LocalDateTime.now().minusMinutes(1).toString());
         evaluationRequest.put("fechaCierre", LocalDateTime.now().plusDays(1).toString());
+        evaluationRequest.put("preguntas", List.of(Map.of("enunciado", "Explique el concepto", "orden", 1)));
         HttpHeaders teacherHeaders = headers(docenteId, "DOCENTE");
 
         Map<String, Object> invalidEvaluation = new HashMap<>(evaluationRequest);
@@ -168,7 +171,9 @@ class EvaluacionesIntegrationTest {
         ResponseEntity<JsonNode> createdResponse = http.exchange(url("/api/v1/evaluaciones"),
                 HttpMethod.POST, new HttpEntity<>(evaluationRequest, teacherHeaders), JsonNode.class);
         assertThat(createdResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(createdResponse.getBody().get("notaMaxima").decimalValue()).isEqualByComparingTo("10");
         UUID evaluationId = UUID.fromString(createdResponse.getBody().get("id").asText());
+        UUID questionId = UUID.fromString(createdResponse.getBody().get("preguntas").get(0).get("id").asText());
 
         ResponseEntity<JsonNode> getResponse = http.exchange(url("/api/v1/evaluaciones/" + evaluationId),
                 HttpMethod.GET, new HttpEntity<>(teacherHeaders), JsonNode.class);
@@ -191,6 +196,35 @@ class EvaluacionesIntegrationTest {
                 HttpMethod.PATCH, new HttpEntity<>(teacherHeaders), JsonNode.class);
         assertThat(published.getStatusCode()).isEqualTo(HttpStatus.OK);
 
+        HttpHeaders studentHeaders = headers(estudianteId, "ESTUDIANTE");
+        HttpHeaders secondStudentHeaders = headers(segundoEstudianteId, "ESTUDIANTE");
+        Map<String, Object> answers = Map.of("respuestas", List.of(Map.of(
+                "preguntaId", questionId.toString(), "respuesta", "Respuesta del primer estudiante")));
+        ResponseEntity<JsonNode> submitted = http.exchange(
+                url("/api/v1/evaluaciones/" + evaluationId + "/entregas"),
+                HttpMethod.POST, new HttpEntity<>(answers, studentHeaders), JsonNode.class);
+        assertThat(submitted.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(submitted.getBody().get("respuestas").get(0).get("respuesta").asText())
+                .isEqualTo("Respuesta del primer estudiante");
+
+        ResponseEntity<JsonNode> duplicateSubmission = http.exchange(
+                url("/api/v1/evaluaciones/" + evaluationId + "/entregas"),
+                HttpMethod.POST, new HttpEntity<>(answers, studentHeaders), JsonNode.class);
+        assertThat(duplicateSubmission.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(duplicateSubmission.getBody().get("error").asText()).isEqualTo("ENTREGA_YA_REALIZADA");
+
+        Map<String, Object> secondAnswers = Map.of("respuestas", List.of(Map.of(
+                "preguntaId", questionId.toString(), "respuesta", "Respuesta del segundo estudiante")));
+        ResponseEntity<JsonNode> secondSubmitted = http.exchange(
+                url("/api/v1/evaluaciones/" + evaluationId + "/entregas"),
+                HttpMethod.POST, new HttpEntity<>(secondAnswers, secondStudentHeaders), JsonNode.class);
+        assertThat(secondSubmitted.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<List<JsonNode>> teacherSubmissions = http.exchange(
+                url("/api/v1/evaluaciones/" + evaluationId + "/entregas"),
+                HttpMethod.GET, new HttpEntity<>(teacherHeaders), new ParameterizedTypeReference<>() {});
+        assertThat(teacherSubmissions.getBody()).hasSize(2);
+
         Map<String, Object> unenabledGrade = Map.of(
                 "estudianteId", UUID.randomUUID().toString(),
                 "nota", 8.5
@@ -210,6 +244,7 @@ class EvaluacionesIntegrationTest {
                 url("/api/v1/evaluaciones/" + evaluationId + "/calificaciones"),
                 HttpMethod.POST, new HttpEntity<>(gradeRequest, teacherHeaders), JsonNode.class);
         assertThat(gradeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(gradeResponse.getBody().get("notaMinima").decimalValue()).isEqualByComparingTo("8");
         Map<String, Object> secondGradeRequest = Map.of(
                 "estudianteId", segundoEstudianteId.toString(),
                 "nota", 5.0,
@@ -220,7 +255,6 @@ class EvaluacionesIntegrationTest {
                 HttpMethod.POST, new HttpEntity<>(secondGradeRequest, teacherHeaders), JsonNode.class);
         assertThat(secondGradeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        HttpHeaders studentHeaders = headers(estudianteId, "ESTUDIANTE");
         ResponseEntity<List<JsonNode>> ownGrades = http.exchange(
                 url("/api/v1/calificaciones/estudiante/" + estudianteId + "?cursoId=" + cursoId),
                 HttpMethod.GET, new HttpEntity<>(studentHeaders),
@@ -299,6 +333,13 @@ class EvaluacionesIntegrationTest {
         rabbit.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, routingKey, payload);
     }
 
+    private void sendWithTypeHeader(String routingKey, Map<String, Object> payload, String typeId) {
+        rabbit.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, routingKey, payload, message -> {
+            message.getMessageProperties().setHeader("__TypeId__", typeId);
+            return message;
+        });
+    }
+
     private Map<String, Object> courseEvent(UUID courseId, UUID teacherId, String title,
                                             String eventType, String status) {
         Map<String, Object> payload = baseEvent(eventType);
@@ -309,6 +350,7 @@ class EvaluacionesIntegrationTest {
         payload.put("estado", status);
         payload.put("cuposDisponibles", 20);
         payload.put("precio", 0);
+        payload.put("notaMinima", 8.0);
         return payload;
     }
 

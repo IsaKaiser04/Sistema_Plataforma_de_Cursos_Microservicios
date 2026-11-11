@@ -4,6 +4,8 @@ import com.lms.evaluaciones.api.dto.CalificacionRequest;
 import com.lms.evaluaciones.api.dto.CalificacionResponse;
 import com.lms.evaluaciones.api.dto.EvaluacionRequest;
 import com.lms.evaluaciones.api.dto.EvaluacionResponse;
+import com.lms.evaluaciones.api.dto.EntregaRequest;
+import com.lms.evaluaciones.api.dto.EntregaResponse;
 import com.lms.evaluaciones.application.EvaluacionService;
 import com.lms.evaluaciones.core.Actor;
 import jakarta.validation.Valid;
@@ -84,6 +86,20 @@ public class EvaluacionController {
                                                      @RequestHeader(value = "X-User-Id", required = false) String userId,
                                                      @RequestHeader(value = "X-User-Rol", required = false) String userRole) {
         return service.calificacionesEvaluacion(id, Actor.fromHeaders(userId, userRole));
+    }
+
+    @PostMapping("/{id}/entregas")
+    public EntregaResponse entregar(@PathVariable UUID id, @Valid @RequestBody EntregaRequest request,
+                                    @RequestHeader(value = "X-User-Id", required = false) String userId,
+                                    @RequestHeader(value = "X-User-Rol", required = false) String userRole) {
+        return service.entregar(id, request, Actor.fromHeaders(userId, userRole));
+    }
+
+    @GetMapping("/{id}/entregas")
+    public List<EntregaResponse> entregas(@PathVariable UUID id,
+                                          @RequestHeader(value = "X-User-Id", required = false) String userId,
+                                          @RequestHeader(value = "X-User-Rol", required = false) String userRole) {
+        return service.entregas(id, Actor.fromHeaders(userId, userRole));
     }
 
 }

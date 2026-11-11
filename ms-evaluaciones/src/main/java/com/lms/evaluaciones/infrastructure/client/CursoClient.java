@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 
 import java.net.http.HttpClient;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,6 +47,8 @@ public class CursoClient {
             curso.setTitulo(text(data, "titulo", "nombre"));
             curso.setEstado(text(data, "estado"));
             curso.setDocenteId(uuid(data, "docenteId"));
+            String notaMinima = text(data, "notaMinima");
+            if (notaMinima != null) curso.setNotaMinima(new BigDecimal(notaMinima));
             return Optional.of(curso);
         } catch (HttpClientErrorException.NotFound exception) {
             return Optional.empty();

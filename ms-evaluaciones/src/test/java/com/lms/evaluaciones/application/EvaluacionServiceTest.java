@@ -22,6 +22,7 @@ import static org.mockito.Mockito.*;
 class EvaluacionServiceTest {
     private EvaluacionRepository evaluaciones;
     private CalificacionRepository calificaciones;
+    private EntregaEvaluacionRepository entregas;
     private EstudianteHabilitadoRepository estudiantes;
     private CursoLocalRepository cursos;
     private NotaFinalRepository notasFinales;
@@ -34,13 +35,14 @@ class EvaluacionServiceTest {
     void setUp() {
         evaluaciones = mock(EvaluacionRepository.class);
         calificaciones = mock(CalificacionRepository.class);
+        entregas = mock(EntregaEvaluacionRepository.class);
         estudiantes = mock(EstudianteHabilitadoRepository.class);
         cursos = mock(CursoLocalRepository.class);
         notasFinales = mock(NotaFinalRepository.class);
         eventos = mock(EventoProcesadoRepository.class);
         cursoClient = mock(CursoClient.class);
         producer = mock(EvaluacionProducer.class);
-        service = new EvaluacionService(evaluaciones, calificaciones, estudiantes, cursos,
+        service = new EvaluacionService(evaluaciones, calificaciones, entregas, estudiantes, cursos,
                 notasFinales, eventos, cursoClient, producer, new BigDecimal("7.0"));
     }
 
@@ -95,6 +97,64 @@ class EvaluacionServiceTest {
     }
 
     @Test
+    void estudianteSoloConsultaSuPropiaNotaFinalSiSigueHabilitado() {
+        UUID cursoId = UUID.randomUUID();
+        UUID estudianteId = UUID.randomUUID();
+        NotaFinalId notaId = new NotaFinalId(cursoId, estudianteId);
+        NotaFinal nota = new NotaFinal();
+        nota.setId(notaId);
+        nota.setNotaFinal(new BigDecimal("8.5"));
+        nota.setAprobado(true);
+        EstudianteHabilitado habilitado = new EstudianteHabilitado();
+        habilitado.setId(new EstudianteHabilitadoId(cursoId, estudianteId));
+        habilitado.setEstado(EstadoHabilitacion.ACTIVO);
+        CursoLocal curso = curso(cursoId);
+        curso.setEstado("FINALIZADO");
+
+        when(cursos.findById(cursoId)).thenReturn(Optional.of(curso));
+        when(estudiantes.findById(habilitado.getId())).thenReturn(Optional.of(habilitado));
+        when(notasFinales.findById(notaId)).thenReturn(Optional.of(nota));
+
+        assertThat(service.notasFinales(cursoId, new Actor(estudianteId, "ESTUDIANTE")))
+                .extracting("notaFinal")
+                .containsExactly(new BigDecimal("8.5"));
+        verify(notasFinales, never()).findByIdCursoIdOrderByNotaFinalDesc(cursoId);
+    }
+
+    @Test
+    void impideQueEstudianteConsulteNotaFinalAntesDeFinalizarElCurso() {
+        UUID cursoId = UUID.randomUUID();
+        UUID estudianteId = UUID.randomUUID();
+        EstudianteHabilitadoId key = new EstudianteHabilitadoId(cursoId, estudianteId);
+        EstudianteHabilitado habilitado = new EstudianteHabilitado();
+        habilitado.setId(key);
+        habilitado.setEstado(EstadoHabilitacion.ACTIVO);
+        when(cursos.findById(cursoId)).thenReturn(Optional.of(curso(cursoId)));
+        when(estudiantes.findById(key)).thenReturn(Optional.of(habilitado));
+
+        assertThatThrownBy(() -> service.notasFinales(cursoId, new Actor(estudianteId, "ESTUDIANTE")))
+                .isInstanceOf(ApiException.class)
+                .satisfies(error -> assertThat(((ApiException) error).getStatus().value()).isEqualTo(403));
+        verify(notasFinales, never()).findById(any());
+    }
+
+    @Test
+    void impideQueEstudianteRetiradoConsulteLaNotaFinal() {
+        UUID cursoId = UUID.randomUUID();
+        UUID estudianteId = UUID.randomUUID();
+        EstudianteHabilitado retirado = new EstudianteHabilitado();
+        retirado.setId(new EstudianteHabilitadoId(cursoId, estudianteId));
+        retirado.setEstado(EstadoHabilitacion.RETIRADO);
+        when(cursos.findById(cursoId)).thenReturn(Optional.of(curso(cursoId)));
+        when(estudiantes.findById(retirado.getId())).thenReturn(Optional.of(retirado));
+
+        assertThatThrownBy(() -> service.notasFinales(cursoId, new Actor(estudianteId, "ESTUDIANTE")))
+                .isInstanceOf(ApiException.class)
+                .satisfies(error -> assertThat(((ApiException) error).getStatus().value()).isEqualTo(403));
+        verify(notasFinales, never()).findById(any());
+    }
+
+    @Test
     void calculaNotaPonderadaYNoLaRecalculaSiYaExiste() {
         UUID cursoId = UUID.randomUUID();
         UUID estudianteId = UUID.randomUUID();
@@ -134,7 +194,8 @@ class EvaluacionServiceTest {
 
     private static EvaluacionRequest request(UUID cursoId, String peso) {
         return new EvaluacionRequest(cursoId, "Parcial", "Descripción", TipoEvaluacion.EXAMEN,
-                new BigDecimal(peso), null, null, null, null);
+                new BigDecimal(peso), null, LocalDateTime.now(), LocalDateTime.now().plusDays(1), null,
+                List.of(new com.lms.evaluaciones.api.dto.PreguntaInput("Explique su respuesta", 1)));
     }
 
     private static Evaluacion evaluacion(UUID id, UUID cursoId, String peso) {
