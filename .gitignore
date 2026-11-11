@@ -1,0 +1,19 @@
+# Vale para todas las carpetas del proyecto
+
+# Dependencias y compilados
+node_modules/
+dist/
+target/
+coverage/
+
+# Variables de entorno reales (los .env.example sí se suben)
+.env
+.env.*
+!.env.example
+
+# Respaldos y temporales
+*.~*~
+*.log
+
+# Copias de trabajo de Claude Code
+.claude/worktrees/

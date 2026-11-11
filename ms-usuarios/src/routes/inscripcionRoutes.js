@@ -1,12 +1,16 @@
 const express = require('express');
+const inscripcionController = require('../controllers/inscripcionController');
+const { leerUsuario, permitirRoles } = require('../middlewares/usuarioCabeceras');
+
 const router = express.Router();
-const { inscribirEstudiante, listarInscritosPorCurso } = require('../controllers/inscripcionController');
-const { verificarRol } = require('../middlewares/authMiddleware'); // El archivo que creamos antes
 
-// Solo el estudiante puede inscribirse a un curso
-router.post('/', verificarRol(['Estudiante']), inscribirEstudiante);
+router.use(leerUsuario);
 
-// Solo el administrador puede ver la lista de estudiantes de un curso
-router.get('/curso/:curso_id', verificarRol(['Administrador']), listarInscritosPorCurso);
+router.post('/', permitirRoles(['ESTUDIANTE']), inscripcionController.crear);
+router.get('/mias', permitirRoles(['ESTUDIANTE']), inscripcionController.mias);
+router.get('/curso/:cursoId', permitirRoles(['DOCENTE', 'ADMINISTRADOR']), inscripcionController.porCurso);
+// Dueño o administrador: se revisa en el servicio
+router.get('/:id', inscripcionController.obtener);
+router.patch('/:id/cancelar', inscripcionController.cancelar);
 
 module.exports = router;

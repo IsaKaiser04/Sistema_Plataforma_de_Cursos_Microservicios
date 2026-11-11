@@ -1,0 +1,79 @@
+# Copia de contratos/graphql/schema.graphql. Si cambias el contrato, copia el archivo aquí.
+
+enum Rol {
+  ADMINISTRADOR
+  DOCENTE
+  ESTUDIANTE
+}
+
+enum EstadoInscripcion {
+  PENDIENTE
+  ACTIVA
+  RECHAZADA
+  CANCELADA
+  FINALIZADA
+}
+
+type Usuario {
+  id: ID!
+  email: String!
+  nombres: String!
+  apellidos: String!
+  rol: Rol!
+  activo: Boolean!
+}
+
+type AuthPayload {
+  token: String!
+  usuario: Usuario!
+}
+
+type Inscripcion {
+  id: ID!
+  cursoId: ID!
+  estudianteId: ID!
+  estado: EstadoInscripcion!
+  motivoRechazo: String
+  fechaInscripcion: String!
+}
+
+input RegistroInput {
+  nombres: String!
+  apellidos: String!
+  email: String!
+  password: String!
+}
+
+input CrearUsuarioInput {
+  nombres: String!
+  apellidos: String!
+  email: String!
+  password: String!
+  rol: Rol!
+}
+
+type Query {
+  "Usuario de la sesión actual"
+  me: Usuario!
+  "Solo ADMINISTRADOR"
+  usuarios(rol: Rol): [Usuario!]!
+  "Solo ESTUDIANTE"
+  misInscripciones: [Inscripcion!]!
+  "Solo DOCENTE o ADMINISTRADOR"
+  inscritosCurso(cursoId: ID!): [Inscripcion!]!
+}
+
+type Mutation {
+  "Público"
+  login(email: String!, password: String!): AuthPayload!
+  "Público, siempre crea un ESTUDIANTE"
+  registro(input: RegistroInput!): Usuario!
+  "Solo ADMINISTRADOR, crea DOCENTE o ADMINISTRADOR"
+  crearUsuario(input: CrearUsuarioInput!): Usuario!
+  "Solo ADMINISTRADOR"
+  cambiarEstadoUsuario(id: ID!, activo: Boolean!): Usuario!
+  "Solo ESTUDIANTE"
+  inscribirse(cursoId: ID!): Inscripcion!
+  "Dueño de la inscripción o ADMINISTRADOR"
+  cancelarInscripcion(id: ID!): Inscripcion!
+}
