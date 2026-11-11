@@ -4,6 +4,7 @@ const { esUuid } = require("../lib/validacion");
 const { soloDuenio, exigirDuenio } = require("../middleware/duenio");
 const { asincrono, datosInvalidos, noEncontrado } = require("../middleware/errores");
 const { urlCertificado } = require("../handlers/certificados/notaFinal");
+const { generarPdfCertificado } = require("../pdf/certificadoPdf");
 
 const router = Router();
 
@@ -47,6 +48,29 @@ router.get(
       [req.params.estudianteId]
     );
     res.json(r.rows.map(aJson));
+  })
+);
+
+// PDF del certificado, solo para el dueño. ?nombre= lo envía el gateway (desde ms-usuarios)
+router.get(
+  "/:id/pdf",
+  asincrono(async (req, res) => {
+    if (!esUuid(req.params.id)) throw datosInvalidos("id no es un UUID válido");
+    const r = await pool.query(`SELECT ${COLUMNAS} FROM certificados WHERE id = $1`, [req.params.id]);
+    if (r.rowCount === 0) throw noEncontrado("Certificado no encontrado");
+    exigirDuenio(req, r.rows[0].estudiante_id);
+
+    const cert = aJson(r.rows[0]);
+    const nombre = typeof req.query.nombre === "string" ? req.query.nombre.trim().slice(0, 120) : "";
+    const pdf = await generarPdfCertificado(cert, nombre || null);
+    res
+      .status(200)
+      .set({
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="certificado-${cert.codigoVerificacion}.pdf"`,
+        "Content-Length": pdf.length,
+      })
+      .send(pdf);
   })
 );
 

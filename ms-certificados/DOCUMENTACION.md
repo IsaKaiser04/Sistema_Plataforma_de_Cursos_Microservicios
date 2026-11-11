@@ -17,7 +17,7 @@ El servicio solo consume eventos: no publica ninguno y no llama a otros servicio
 | --- | --- |
 | Responsable | María Chuico |
 | Carpeta del repo | `ms-certificados/` |
-| Tecnología | Node.js 22, Express 4, pg, amqplib |
+| Tecnología | Node.js 22, Express 4, pg, amqplib, pdfkit, qrcode |
 | Puerto | 3000 interno, 8004 en local |
 | Base de datos | `db_notificaciones` / `notificaciones_db` (PostgreSQL 16) |
 | Cola propia | `lms.notificaciones.queue`, errores en `lms.notificaciones.dlq` |
@@ -35,7 +35,7 @@ Se toman las opciones recomendadas del plan.
 | P4. Rutas | `/api/v1/notificaciones` y `/api/v1/certificados` |
 | P5. Código de verificación | `LMS-<codigoCurso sin guiones>-<4 dígitos por curso>`, ej. `LMS-SD202601-0001` |
 | P6. Avisar nota a reprobados | Sí, notificación `NOTA_FINAL` |
-| P7. PDF del certificado | No; se muestra en una página del frontend (T8 descartada) |
+| P7. PDF del certificado | **Sí (cambio del 11 de noviembre).** Se genera a pedido con los datos guardados, con QR a la verificación pública |
 | P8. Pruebas | Manuales (curl y panel de RabbitMQ) + Jest para los manejadores |
 | P9. Certificados aparte | Un solo servicio, renombrado ms-certificados, con los dos módulos |
 | P10. Borrar notificaciones viejas | No |
@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS certificados (
 | --- | --- | --- | --- |
 | GET | `/api/v1/certificados/estudiante/:estudianteId` | El estudiante | Lista de sus certificados |
 | GET | `/api/v1/certificados/:id` | El dueño | Detalle; 403 si no es suyo |
+| GET | `/api/v1/certificados/:id/pdf?nombre=` | El dueño | PDF (A4 horizontal) para descargar; 403 si no es suyo |
 | GET | `/api/v1/certificados/verificar/:codigo` | Público | Datos del certificado o 404 `NO_ENCONTRADO` |
 
 Respuesta de un certificado:
@@ -140,7 +141,14 @@ Respuesta de un certificado:
 }
 ```
 
-No entra en el alcance: PDF, firma digital ni revocar certificados.
+### PDF del certificado
+
+- Se genera en el momento con `pdfkit` (`src/pdf/certificadoPdf.js`); no se guardan archivos. El mismo certificado siempre da el mismo contenido.
+- Lleva: nombre del estudiante, curso, código del curso, nota final, fecha de emisión, código de verificación y un QR que abre `FRONTEND_URL/certificados/<codigo>`.
+- El evento `nota.final.calculada` no trae el nombre del estudiante, así que el gateway lo toma de ms-usuarios (`me`) y lo envía en `?nombre=`. Si ms-usuarios no responde, el PDF sale sin nombre.
+- En GraphQL es `certificadoPdf(id): ArchivoPdf` y el contenido viaja en base64, para que el frontend siga hablando solo con el gateway.
+
+No entra en el alcance: firma digital ni revocar certificados.
 
 ## Notificaciones (alertas)
 
@@ -393,6 +401,7 @@ Se hace una tarea por vez, en este orden, y se marca al terminar. Después de ca
 - [x] **T9.** Contador de no leídas, marcar todas y rutas `/api/v1/...`.
 - [x] **T10.** Validar `X-User-Id` (403 si no es el dueño).
 - [x] **T11.** Formato de error común.
+- [x] **T8.** PDF del certificado (reactivada): endpoint `/pdf`, `certificadoPdf` en el gateway y botón "Descargar PDF" en Mis certificados.
 - [x] **T12.** Pruebas (tabla siguiente) con Jest para los manejadores.
 
 ### Estado de las pruebas (11 de noviembre)

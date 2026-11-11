@@ -1,0 +1,250 @@
+/* Estilos del módulo notificaciones y certificados (María).
+   Clases con prefijo notif- y cert- para no chocar con otros módulos.
+   Usa las variables de index.css. */
+
+/* ---------- Campana ---------- */
+
+.notif-campana {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  text-decoration: none;
+  font-size: 1.15rem;
+}
+
+.notif-campana:hover,
+.notif-campana.active {
+  background: var(--color-info-fondo);
+}
+
+.notif-contador {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-error);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* ---------- Encabezado de página ---------- */
+
+.notif-encabezado {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.notif-filtros {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  background: var(--color-superficie);
+}
+
+.notif-filtro {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-texto-suave);
+  cursor: pointer;
+}
+
+.notif-filtro[aria-pressed='true'] {
+  background: var(--color-info-fondo);
+  color: var(--color-primario);
+  font-weight: 500;
+}
+
+/* ---------- Lista de notificaciones ---------- */
+
+.notif-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notif-item {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.notif-item.notif-no-leida {
+  border-left: 4px solid var(--color-primario);
+  background: #fbfcff;
+}
+
+.notif-icono {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-fondo);
+  font-size: 1.2rem;
+}
+
+.notif-cuerpo {
+  min-width: 0;
+}
+
+.notif-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--color-texto-suave);
+  margin-bottom: 2px;
+}
+
+.notif-mensaje {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.notif-item.notif-no-leida .notif-mensaje {
+  font-weight: 500;
+}
+
+.notif-vacio {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+@media (max-width: 560px) {
+  .notif-item {
+    grid-template-columns: 32px 1fr;
+  }
+  .notif-icono {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  .notif-acciones {
+    grid-column: 2;
+  }
+}
+
+/* ---------- Certificados ---------- */
+
+.cert-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.cert-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border-top: 4px solid var(--color-primario);
+}
+
+.cert-curso {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.cert-nota {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primario);
+  line-height: 1;
+}
+
+.cert-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--color-fondo);
+  overflow-wrap: anywhere;
+}
+
+.cert-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+/* ---------- Verificación pública ---------- */
+
+.cert-verificacion {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cert-diploma {
+  text-align: center;
+  padding: 40px 32px;
+  border: 2px solid var(--color-primario);
+  outline: 6px solid var(--color-info-fondo);
+}
+
+.cert-diploma .cert-nombre-curso {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 8px 0 16px;
+}
+
+.cert-sello {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #e7f6ec;
+  color: #1a7f37;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.cert-buscador {
+  display: flex;
+  gap: 8px;
+}
+
+.cert-buscador .campo {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .cert-buscador {
+    flex-direction: column;
+  }
+  .cert-diploma {
+    padding: 28px 20px;
+  }
+}

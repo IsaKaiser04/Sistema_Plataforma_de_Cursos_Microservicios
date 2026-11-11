@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useSesion } from '../context/SesionContext';
+import CampanaNotificaciones from './CampanaNotificaciones';
 
 const NOMBRE_ROL = {
   ADMINISTRADOR: 'Administrador',
@@ -11,6 +12,9 @@ const NOMBRE_ROL = {
 // cuando existan (catálogo, mis cursos, evaluaciones, notificaciones...).
 const MENU = [
   { ruta: '/', texto: 'Inicio', roles: ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'] },
+  // Módulo notificaciones y certificados (María)
+  { ruta: '/notificaciones', texto: 'Notificaciones', roles: ['ESTUDIANTE'] },
+  { ruta: '/mis-certificados', texto: 'Mis certificados', roles: ['ESTUDIANTE'] },
 ];
 
 export default function Layout() {
@@ -29,6 +33,7 @@ export default function Layout() {
           ))}
         </nav>
         <div className="barra-usuario">
+          {usuario.rol === 'ESTUDIANTE' && <CampanaNotificaciones />}
           <span className="barra-nombre">{usuario.nombres || usuario.email}</span>
           <span className="chip">{NOMBRE_ROL[usuario.rol] || usuario.rol}</span>
           <button type="button" className="boton boton-secundario" onClick={() => cerrarSesion()}>

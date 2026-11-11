@@ -77,3 +77,64 @@ type Mutation {
   "Dueño de la inscripción o ADMINISTRADOR"
   cancelarInscripcion(id: ID!): Inscripcion!
 }
+
+# ---------------------------------------------------------------
+# Módulo notificaciones y certificados (María) -> ms-certificados
+# Se agrega con "extend" para no tocar los tipos de otros módulos.
+# ---------------------------------------------------------------
+
+enum EstadoNotificacion {
+  ENVIADA
+  LEIDA
+}
+
+type Notificacion {
+  id: ID!
+  estudianteId: ID!
+  cursoId: ID
+  "INSCRIPCION, INSCRIPCION_RECHAZADA, CURSO_INICIADO, CURSO_FINALIZADO, EVALUACION_NUEVA, NOTA, NOTA_FINAL o CERTIFICADO"
+  tipo: String!
+  mensaje: String!
+  estado: EstadoNotificacion!
+  fecha: String!
+}
+
+type Certificado {
+  id: ID!
+  codigoVerificacion: String!
+  estudianteId: ID!
+  cursoId: ID!
+  codigoCurso: String!
+  tituloCurso: String!
+  notaFinal: Float!
+  fechaEmision: String!
+  url: String!
+}
+
+type ArchivoPdf {
+  nombreArchivo: String!
+  "Contenido del PDF en base64"
+  contenidoBase64: String!
+}
+
+extend type Query {
+  "Usuario con sesión: sus notificaciones, la más reciente primero"
+  misNotificaciones(estado: EstadoNotificacion): [Notificacion!]!
+  "Usuario con sesión: cuántas notificaciones no ha leído"
+  totalNoLeidas: Int!
+  "Usuario con sesión: sus certificados"
+  misCertificados: [Certificado!]!
+  "Dueño del certificado"
+  certificado(id: ID!): Certificado!
+  "Público, sin token. Devuelve null si el código no existe"
+  verificarCertificado(codigo: String!): Certificado
+  "Dueño del certificado: PDF en base64 con su nombre (tomado de ms-usuarios)"
+  certificadoPdf(id: ID!): ArchivoPdf!
+}
+
+extend type Mutation {
+  "Dueño de la notificación"
+  marcarNotificacionLeida(id: ID!): Notificacion!
+  "Usuario con sesión: marca todas como leídas y devuelve cuántas cambiaron"
+  marcarTodasLeidas: Int!
+}
