@@ -23,6 +23,9 @@ const crear = (usuario, input) => usuarios('/api/v1/usuarios', { method: 'POST',
 const cambiarEstado = (usuario, idUsuario, activo) =>
   usuarios(`/api/v1/usuarios/${id(idUsuario)}/estado`, { method: 'PATCH', body: { activo }, usuario });
 
+// Ruta interna, no lleva cabeceras de usuario (la misma que usa ms-cursos).
+const docente = (docenteId) => usuarios(`/api/v1/usuarios/docentes/${id(docenteId)}`);
+
 const inscribirse = (usuario, cursoId) =>
   usuarios('/api/v1/inscripciones', { method: 'POST', body: { cursoId }, usuario });
 
@@ -41,6 +44,7 @@ module.exports = {
   listar,
   crear,
   cambiarEstado,
+  docente,
   inscribirse,
   cancelarInscripcion,
   misInscripciones,

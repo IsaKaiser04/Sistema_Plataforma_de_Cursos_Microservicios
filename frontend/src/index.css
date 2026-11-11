@@ -498,3 +498,17 @@ a {
 .datos dd {
   margin: 0;
 }
+
+.inscripcion-codigo {
+  font-size: 0.8rem;
+}
+
+.inscripcion-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inscripcion-acciones .boton {
+  padding: 6px 12px;
+}

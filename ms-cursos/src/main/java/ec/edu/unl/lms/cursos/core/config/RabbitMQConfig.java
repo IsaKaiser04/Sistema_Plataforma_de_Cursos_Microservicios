@@ -2,6 +2,7 @@ package ec.edu.unl.lms.cursos.core.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
@@ -19,17 +20,20 @@ public class RabbitMQConfig {
     @Value("${lms.messaging.exchange}")
     private String exchangeName;
 
-    @Value("${lms.messaging.cursos-queue}")
-    private String cursosQueueName;
-
-    @Value("${lms.messaging.cursos-routing-key}")
-    private String cursosRoutingKey;
-
     @Value("${lms.messaging.inscripciones-queue}")
     private String inscripcionesQueueName;
 
-    @Value("${lms.messaging.inscripciones-routing-key}")
-    private String inscripcionesRoutingKey;
+    @Value("${lms.messaging.inscripciones-creada-key}")
+    private String inscripcionCreadaKey;
+
+    @Value("${lms.messaging.inscripciones-cancelada-key}")
+    private String inscripcionCanceladaKey;
+
+    @Value("${lms.messaging.dlx}")
+    private String dlxName;
+
+    @Value("${lms.messaging.dlq}")
+    private String dlqName;
 
     @Bean
     public TopicExchange lmsExchange() {
@@ -37,23 +41,35 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue cursosEventosQueue() {
-        return QueueBuilder.durable(cursosQueueName).build();
+    public FanoutExchange deadLetterExchange() {
+        return new FanoutExchange(dlxName, true, false);
     }
 
     @Bean
-    public Queue inscripcionesCreadasQueue() {
-        return QueueBuilder.durable(inscripcionesQueueName).build();
+    public Queue deadLetterQueue() {
+        return QueueBuilder.durable(dlqName).build();
     }
 
     @Bean
-    public Binding cursosBinding(Queue cursosEventosQueue, TopicExchange lmsExchange) {
-        return BindingBuilder.bind(cursosEventosQueue).to(lmsExchange).with(cursosRoutingKey);
+    public Binding dlqBinding(Queue deadLetterQueue, FanoutExchange deadLetterExchange) {
+        return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange);
     }
 
     @Bean
-    public Binding inscripcionesBinding(Queue inscripcionesCreadasQueue, TopicExchange lmsExchange) {
-        return BindingBuilder.bind(inscripcionesCreadasQueue).to(lmsExchange).with(inscripcionesRoutingKey);
+    public Queue inscripcionesQueue() {
+        return QueueBuilder.durable(inscripcionesQueueName)
+                .withArgument("x-dead-letter-exchange", dlxName)
+                .build();
+    }
+
+    @Bean
+    public Binding inscripcionCreadaBinding(Queue inscripcionesQueue, TopicExchange lmsExchange) {
+        return BindingBuilder.bind(inscripcionesQueue).to(lmsExchange).with(inscripcionCreadaKey);
+    }
+
+    @Bean
+    public Binding inscripcionCanceladaBinding(Queue inscripcionesQueue, TopicExchange lmsExchange) {
+        return BindingBuilder.bind(inscripcionesQueue).to(lmsExchange).with(inscripcionCanceladaKey);
     }
 
     @Bean

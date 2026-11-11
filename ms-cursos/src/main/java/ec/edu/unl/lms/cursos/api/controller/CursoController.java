@@ -25,13 +25,13 @@ public class CursoController {
     }
 
     @PostMapping
-    @Operation(summary = "Crear un nuevo curso", description = "Crea un curso en estado BORRADOR y publica el evento CursoCreado en RabbitMQ")
+    @Operation(summary = "Crear un nuevo curso")
     public ResponseEntity<CursoResponse> crearCurso(@Valid @RequestBody CursoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(cursoService.crearCurso(request));
     }
 
     @GetMapping
-    @Operation(summary = "Listar cursos", description = "Permite filtrar opcionalmente por categoria y estado")
+    @Operation(summary = "Listar cursos")
     public ResponseEntity<List<CursoResponse>> listarCursos(
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) EstadoCurso estado) {
@@ -39,7 +39,7 @@ public class CursoController {
     }
 
     @GetMapping("/activos")
-    @Operation(summary = "Catalogo de cursos activos", description = "Endpoint optimizado para el API Gateway (GraphQL) y cache Redis BFF")
+    @Operation(summary = "Catalogo de cursos activos")
     public ResponseEntity<List<CursoResponse>> listarCursosActivos() {
         return ResponseEntity.ok(cursoService.listarCursosActivosParaCatalogo());
     }
@@ -63,7 +63,7 @@ public class CursoController {
     }
 
     @GetMapping("/{id}/validar")
-    @Operation(summary = "Validar existencia y cupos de un curso", description = "Usado por ms-inscripciones y API Gateway antes de registrar una matricula")
+    @Operation(summary = "Validar existencia y cupos de un curso")
     public ResponseEntity<ValidacionCursoResponse> validarCurso(@PathVariable UUID id) {
         return ResponseEntity.ok(cursoService.validarDisponibilidadCurso(id));
     }
@@ -77,7 +77,7 @@ public class CursoController {
     }
 
     @PatchMapping("/{id}/estado")
-    @Operation(summary = "Cambiar el estado de un curso (BORRADOR, PUBLICADO, EN_CURSO, FINALIZADO, ARCHIVADO)")
+    @Operation(summary = "Cambiar el estado de un curso segun las transiciones permitidas")
     public ResponseEntity<CursoResponse> cambiarEstado(
             @PathVariable UUID id,
             @RequestParam EstadoCurso estado) {
@@ -92,8 +92,26 @@ public class CursoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(cursoService.agregarModulo(id, request));
     }
 
+    @PutMapping("/{id}/modulos/{moduloId}")
+    @Operation(summary = "Editar un modulo existente de un curso")
+    public ResponseEntity<ModuloResponse> actualizarModulo(
+            @PathVariable UUID id,
+            @PathVariable UUID moduloId,
+            @Valid @RequestBody ModuloRequest request) {
+        return ResponseEntity.ok(cursoService.actualizarModulo(id, moduloId, request));
+    }
+
+    @DeleteMapping("/{id}/modulos/{moduloId}")
+    @Operation(summary = "Eliminar un modulo de un curso")
+    public ResponseEntity<Void> eliminarModulo(
+            @PathVariable UUID id,
+            @PathVariable UUID moduloId) {
+        cursoService.eliminarModulo(id, moduloId);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar un curso")
+    @Operation(summary = "Eliminar un curso (solo en estado BORRADOR)")
     public ResponseEntity<Void> eliminarCurso(@PathVariable UUID id) {
         cursoService.eliminarCurso(id);
         return ResponseEntity.noContent().build();

@@ -56,10 +56,17 @@ const CAMPOS_INSCRIPCION = gql`
   }
 `;
 
+// Trae también el curso (lo resuelve el módulo cursos). Si ms-cursos no responde,
+// curso llega en null y las inscripciones igual se muestran (usar errorPolicy: 'all').
 export const MIS_INSCRIPCIONES = gql`
   query MisInscripciones {
     misInscripciones {
       ...CamposInscripcion
+      curso {
+        id
+        codigo
+        titulo
+      }
     }
   }
   ${CAMPOS_INSCRIPCION}

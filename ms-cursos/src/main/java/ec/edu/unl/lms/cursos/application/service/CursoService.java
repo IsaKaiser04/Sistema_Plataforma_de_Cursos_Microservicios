@@ -16,7 +16,10 @@ public interface CursoService {
     CursoResponse actualizarCurso(UUID id, CursoRequest request);
     CursoResponse cambiarEstado(UUID id, EstadoCurso nuevoEstado);
     ModuloResponse agregarModulo(UUID cursoId, ModuloRequest request);
+    ModuloResponse actualizarModulo(UUID cursoId, UUID moduloId, ModuloRequest request);
+    void eliminarModulo(UUID cursoId, UUID moduloId);
     ValidacionCursoResponse validarDisponibilidadCurso(UUID cursoId);
     void procesarReservaCupoPorInscripcion(UUID cursoId, UUID inscripcionId, UUID estudianteId);
+    void procesarCancelacionInscripcion(UUID cursoId, UUID inscripcionId, UUID estudianteId);
     void eliminarCurso(UUID id);
 }

@@ -5,7 +5,6 @@ spring:
   application:
     name: ms-cursos
 
-  # Valores por defecto alineados exactamente con el docker-compose.yml del repositorio SIGED/LMS
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cursos_db}
     username: ${DB_USER:admin}
@@ -27,18 +26,21 @@ spring:
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
     connection-timeout: 5000
+    listener:
+      simple:
+        default-requeue-rejected: false
 
-# Configuracion de colas, exchanges y routing keys para eventos LMS
 lms:
   messaging:
     exchange: lms.eventos.exchange
-    cursos-queue: lms.cursos.eventos.queue
-    cursos-routing-key: cursos.evento.#
     inscripciones-queue: lms.cursos.inscripciones.queue
-    inscripciones-routing-key: inscripcion.creada
+    inscripciones-creada-key: inscripcion.creada
+    inscripciones-cancelada-key: inscripcion.cancelada
+    dlx: lms.cursos.dlx
+    dlq: lms.cursos.dlq
   external:
     usuarios-mock: ${USUARIOS_SERVICE_MOCK:true}
-    usuarios-url: ${USUARIOS_SERVICE_URL:http://ms-usuarios:8080}
+    usuarios-url: ${USUARIOS_SERVICE_URL:http://ms-usuarios:3004}
 
 management:
   endpoints:

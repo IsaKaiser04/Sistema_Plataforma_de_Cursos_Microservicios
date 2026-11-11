@@ -1,4 +1,5 @@
 const { GraphQLError } = require('graphql');
+const { unwrapResolverError } = require('@apollo/server/errors');
 
 // Traduce el error común de los servicios (integracion.md, sección 5)
 // al extensions.code de api-gateway.md, sección 6.
@@ -29,13 +30,29 @@ function desdeRespuesta(status, cuerpo, servicio) {
   return errorGraphQL('ERROR_INTERNO', `Ocurrió un error en el servicio de ${servicio}`);
 }
 
-// Los errores que no son nuestros no deben mostrar detalles internos al navegador.
+const esFalloDeRed = (error) =>
+  error && (error.name === 'AbortError' || (error.name === 'TypeError' && /fetch/i.test(error.message)));
+
+// Los errores que no son GraphQLError llegan como INTERNAL_SERVER_ERROR.
+// Si el módulo puso un código propio (error.extensions.code) se respeta;
+// si el servicio no respondió, es SERVICIO_NO_DISPONIBLE; lo demás no muestra detalles internos.
 function formatearError(formateado, error) {
-  if (formateado.extensions && formateado.extensions.code === 'INTERNAL_SERVER_ERROR') {
-    console.error('[gateway] Error no controlado:', error);
-    return { message: 'Ocurrió un error en el gateway', extensions: { code: 'ERROR_INTERNO' } };
+  if (!formateado.extensions || formateado.extensions.code !== 'INTERNAL_SERVER_ERROR') return formateado;
+
+  const original = unwrapResolverError(error);
+  if (original && original.extensions && original.extensions.code) {
+    return { ...formateado, message: original.message, extensions: { code: original.extensions.code } };
   }
-  return formateado;
+  if (esFalloDeRed(original)) {
+    return {
+      ...formateado,
+      message: 'Un servicio no está disponible, intenta más tarde',
+      extensions: { code: 'SERVICIO_NO_DISPONIBLE' },
+    };
+  }
+
+  console.error('[gateway] Error no controlado:', original);
+  return { ...formateado, message: 'Ocurrió un error en el gateway', extensions: { code: 'ERROR_INTERNO' } };
 }
 
 module.exports = { errorGraphQL, noAutenticado, prohibido, servicioNoDisponible, desdeRespuesta, formatearError };

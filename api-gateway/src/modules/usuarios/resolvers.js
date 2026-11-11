@@ -20,4 +20,16 @@ module.exports = {
     inscribirse: (_, { cursoId }, ctx) => ds.inscribirse(requiereRol(ctx, ['ESTUDIANTE']), cursoId),
     cancelarInscripcion: (_, { id }, ctx) => ds.cancelarInscripcion(requiereLogin(ctx), id),
   },
+
+  // Campo del tipo Curso (módulo cursos) que se completa con datos de ms-usuarios.
+  Curso: {
+    docente: async (curso) => {
+      if (!curso.docenteId) return null;
+      try {
+        return await ds.docente(curso.docenteId);
+      } catch (error) {
+        return null; // docente inexistente o ms-usuarios caído: el curso igual se muestra
+      }
+    },
+  },
 };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
+import { Link } from 'react-router-dom';
 import { MIS_INSCRIPCIONES, CANCELAR_INSCRIPCION } from '../../api/usuarios';
 import { mensajeDeError } from '../../utils/errores';
 
@@ -32,14 +33,24 @@ function formatearFecha(texto) {
 function TarjetaInscripcion({ inscripcion, alCancelar, cancelando }) {
   const estado = ESTADOS[inscripcion.estado] ?? { texto: inscripcion.estado, clase: '' };
   const sePuedeCancelar = VIGENTES.includes(inscripcion.estado);
+  const curso = inscripcion.curso;
 
   return (
     <article className="tarjeta inscripcion">
       <div className="inscripcion-cabecera">
-        {/* Cuando ms-cursos agregue el tipo Curso al contrato, aquí va el título del curso. */}
         <div>
-          <p className="inscripcion-curso">Curso</p>
-          <code className="inscripcion-id">{inscripcion.cursoId}</code>
+          {curso ? (
+            <>
+              <p className="inscripcion-curso">{curso.titulo}</p>
+              <span className="texto-suave inscripcion-codigo">{curso.codigo}</span>
+            </>
+          ) : (
+            // Sin datos de ms-cursos (caído o curso borrado) se muestra el id.
+            <>
+              <p className="inscripcion-curso">Curso</p>
+              <code className="inscripcion-id">{inscripcion.cursoId}</code>
+            </>
+          )}
         </div>
         <span className={`insignia ${estado.clase}`}>{estado.texto}</span>
       </div>
@@ -55,16 +66,23 @@ function TarjetaInscripcion({ inscripcion, alCancelar, cancelando }) {
 
       <div className="inscripcion-pie">
         <span className="texto-suave">Inscrito el {formatearFecha(inscripcion.fechaInscripcion)}</span>
-        {sePuedeCancelar && (
-          <button
-            type="button"
-            className="boton boton-secundario"
-            disabled={cancelando}
-            onClick={() => alCancelar(inscripcion)}
-          >
-            Cancelar inscripción
-          </button>
-        )}
+        <div className="inscripcion-acciones">
+          {inscripcion.estado === 'ACTIVA' && (
+            <Link to={`/cursos/${inscripcion.cursoId}`} className="boton">
+              Ver contenido
+            </Link>
+          )}
+          {sePuedeCancelar && (
+            <button
+              type="button"
+              className="boton boton-secundario"
+              disabled={cancelando}
+              onClick={() => alCancelar(inscripcion)}
+            >
+              Cancelar inscripción
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );
@@ -74,6 +92,7 @@ export default function MisCursos() {
   const [errorAccion, setErrorAccion] = useState('');
   const { data, loading, error, startPolling, stopPolling } = useQuery(MIS_INSCRIPCIONES, {
     fetchPolicy: 'cache-and-network',
+    errorPolicy: 'all', // si ms-cursos falla, igual se ven las inscripciones (sin título)
   });
   const [cancelar, { loading: cancelando }] = useMutation(CANCELAR_INSCRIPCION);
 
@@ -101,6 +120,8 @@ export default function MisCursos() {
 
   const vigentes = inscripciones.filter((i) => VIGENTES.includes(i.estado));
   const historial = inscripciones.filter((i) => !VIGENTES.includes(i.estado));
+  // Con errorPolicy 'all' solo es error de verdad si no llegó la lista.
+  const errorGrave = error && !data?.misInscripciones;
 
   return (
     <section className="seccion">
@@ -110,13 +131,15 @@ export default function MisCursos() {
       </div>
 
       {errorAccion && <p className="alerta alerta-error" role="alert">{errorAccion}</p>}
-      {error && <p className="alerta alerta-error">{mensajeDeError(error)}</p>}
+      {errorGrave && <p className="alerta alerta-error">{mensajeDeError(error)}</p>}
       {loading && inscripciones.length === 0 && <p className="texto-suave">Cargando tus inscripciones...</p>}
 
-      {!loading && !error && inscripciones.length === 0 && (
+      {!loading && !errorGrave && inscripciones.length === 0 && (
         <div className="tarjeta vacio">
           <h2 className="subtitulo">Todavía no te inscribiste en ningún curso</h2>
-          <p className="texto-suave">Cuando te inscribas desde el catálogo, el curso va a aparecer aquí.</p>
+          <p className="texto-suave">
+            Entra al <Link to="/cursos">catálogo</Link> y pulsa "Inscribirme al Curso".
+          </p>
         </div>
       )}
 

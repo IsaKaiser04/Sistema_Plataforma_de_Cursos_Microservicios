@@ -9,6 +9,13 @@ import Prohibido from './pages/Prohibido';
 import NoEncontrada from './pages/NoEncontrada';
 import Usuarios from './pages/admin/Usuarios';
 import MisCursos from './pages/inscripciones/MisCursos';
+import {
+  CatalogoPagina,
+  DetallePagina,
+  GestionCursosPagina,
+  FormularioCursoPagina,
+  EvaluacionesPagina,
+} from './pages/cursos/PaginasCursos';
 
 // Se carga solo al entrar a su ruta: si esas pantallas tienen un error
 // (hoy CrearEvaluacion importa un servicio que no existe), el resto de la app sigue funcionando.
@@ -26,6 +33,9 @@ export default function App() {
       <Route element={<RutaProtegida />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Inicio />} />
+          <Route path="/cursos" element={<CatalogoPagina />} />
+          <Route path="/cursos/:id" element={<DetallePagina />} />
+          <Route path="/cursos/:id/evaluaciones" element={<EvaluacionesPagina />} />
           {/* Temporal hasta que evaluaciones pase a GraphQL */}
           <Route
             path="/evaluaciones-demo"
@@ -38,14 +48,23 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Solo ADMINISTRADOR. Las pantallas de otros roles se agregan igual:
-          <Route element={<RutaProtegida roles={['DOCENTE']} />}> ... */}
+      {/* Solo ESTUDIANTE */}
       <Route element={<RutaProtegida roles={['ESTUDIANTE']} />}>
         <Route element={<Layout />}>
           <Route path="/mis-cursos" element={<MisCursos />} />
         </Route>
       </Route>
 
+      {/* DOCENTE o ADMINISTRADOR: gestión de cursos (módulo cursos) */}
+      <Route element={<RutaProtegida roles={['DOCENTE', 'ADMINISTRADOR']} />}>
+        <Route element={<Layout />}>
+          <Route path="/docente/cursos" element={<GestionCursosPagina />} />
+          <Route path="/docente/cursos/nuevo" element={<FormularioCursoPagina />} />
+          <Route path="/docente/cursos/:id/editar" element={<FormularioCursoPagina />} />
+        </Route>
+      </Route>
+
+      {/* Solo ADMINISTRADOR */}
       <Route element={<RutaProtegida roles={['ADMINISTRADOR']} />}>
         <Route element={<Layout />}>
           <Route path="/admin/usuarios" element={<Usuarios />} />
