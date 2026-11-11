@@ -1,6 +1,8 @@
 package ec.edu.unl.lms.cursos.infrastructure.messaging;
 
+import ec.edu.unl.lms.cursos.infrastructure.messaging.event.AccesoHabilitadoEvent;
 import ec.edu.unl.lms.cursos.infrastructure.messaging.event.CursoEventoPayload;
+import ec.edu.unl.lms.cursos.infrastructure.messaging.event.InscripcionRechazadaEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpException;
@@ -25,12 +27,30 @@ public class CursoEventPublisher {
     public void publicarEvento(CursoEventoPayload evento, String routingKey) {
         try {
             rabbitTemplate.convertAndSend(exchangeName, routingKey, evento);
-            log.info("Evento AMQP publicado en RabbitMQ -> exchange={}, routingKey={}, tipo={}, cursoId={}",
+            log.info("Evento AMQP publicado -> exchange={}, routingKey={}, tipo={}, cursoId={}",
                     exchangeName, routingKey, evento.tipoEvento(), evento.cursoId());
         } catch (AmqpException ex) {
-            // Resiliencia: si el broker RabbitMQ no esta disponible temporalmente, se registra sin abortar la transaccion local
-            log.warn("No se pudo publicar el evento {} en RabbitMQ (modo resiliente): {}",
-                    evento.tipoEvento(), ex.getMessage());
+            log.warn("No se pudo publicar el evento {} en RabbitMQ: {}", evento.tipoEvento(), ex.getMessage());
+        }
+    }
+
+    public void publicarAccesoHabilitado(AccesoHabilitadoEvent evento) {
+        try {
+            rabbitTemplate.convertAndSend(exchangeName, "acceso.habilitado", evento);
+            log.info("Evento AMQP [acceso.habilitado] publicado -> inscripcionId={}, cursoId={}",
+                    evento.inscripcionId(), evento.cursoId());
+        } catch (AmqpException ex) {
+            log.warn("No se pudo publicar acceso.habilitado en RabbitMQ: {}", ex.getMessage());
+        }
+    }
+
+    public void publicarInscripcionRechazada(InscripcionRechazadaEvent evento) {
+        try {
+            rabbitTemplate.convertAndSend(exchangeName, "inscripcion.rechazada", evento);
+            log.info("Evento AMQP [inscripcion.rechazada] publicado -> inscripcionId={}, motivo={}",
+                    evento.inscripcionId(), evento.motivo());
+        } catch (AmqpException ex) {
+            log.warn("No se pudo publicar inscripcion.rechazada en RabbitMQ: {}", ex.getMessage());
         }
     }
 }

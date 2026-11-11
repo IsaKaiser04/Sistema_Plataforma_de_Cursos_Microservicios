@@ -33,22 +33,16 @@ public class Modulo {
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
-
     public String getTitulo() { return titulo; }
     public void setTitulo(String titulo) { this.titulo = titulo; }
-
     public String getDescripcion() { return descripcion; }
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
-
     public Integer getOrden() { return orden; }
     public void setOrden(Integer orden) { this.orden = orden; }
-
     public Integer getDuracionMinutos() { return duracionMinutos; }
     public void setDuracionMinutos(Integer duracionMinutos) { this.duracionMinutos = duracionMinutos; }
-
     public String getRecursoUrl() { return recursoUrl; }
     public void setRecursoUrl(String recursoUrl) { this.recursoUrl = recursoUrl; }
-
     public Curso getCurso() { return curso; }
     public void setCurso(Curso curso) { this.curso = curso; }
 }

@@ -15,9 +15,9 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("API Microservicio de Cursos (ms-cursos) - LMS UNL")
                         .version("1.0.0")
-                        .description("Especificacion API-First para la gestion de cursos, modulos, validacion de catalogo y sincronizacion por eventos con RabbitMQ.")
+                        .description("Especificacion API-First para la gestion de cursos, modulos, reservas de cupo y sincronizacion por eventos con RabbitMQ.")
                         .contact(new Contact()
-                                .name("Grupo 1 - Sistemas Distribuidos UNL")
+                                .name("Cristian Tomala - Grupo 1 Sistemas Distribuidos UNL")
                                 .email("cristian.tomala@unl.edu.ec")));
     }
 }
