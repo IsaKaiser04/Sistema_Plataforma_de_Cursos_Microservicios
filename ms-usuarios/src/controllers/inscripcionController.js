@@ -1,18 +1,45 @@
-const Inscripcion = require('../models/Inscripcion');
+const inscripcionService = require('../services/inscripcionService');
 
-const crearInscripcion = async (req, res) => {
+async function crear(req, res, next) {
   try {
-    const { curso_id } = req.body;
-    const usuario_id = req.usuario.id; // Este dato vendrá inyectado del token
-
-    const existe = await Inscripcion.findOne({ where: { curso_id, usuario_id } });
-    if (existe) return res.status(400).json({ error: 'Ya estás inscrito' });
-
-    const inscripcion = await Inscripcion.create({ curso_id, usuario_id });
-    res.status(201).json({ mensaje: 'Inscrito con éxito', inscripcion });
+    const { cursoId } = req.body || {};
+    const inscripcion = await inscripcionService.crear(req.usuario.id, cursoId);
+    res.status(201).json(inscripcion);
   } catch (error) {
-    res.status(500).json({ error: 'Error al inscribirse' });
+    next(error);
   }
-};
+}
 
-module.exports = { crearInscripcion };
+async function mias(req, res, next) {
+  try {
+    res.json(await inscripcionService.misInscripciones(req.usuario.id));
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function porCurso(req, res, next) {
+  try {
+    res.json(await inscripcionService.inscritosDeCurso(req.params.cursoId));
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function obtener(req, res, next) {
+  try {
+    res.json(await inscripcionService.obtener(req.params.id, req.usuario));
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function cancelar(req, res, next) {
+  try {
+    res.json(await inscripcionService.cancelar(req.params.id, req.usuario));
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { crear, mias, porCurso, obtener, cancelar };

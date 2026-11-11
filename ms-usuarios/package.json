@@ -1,9 +1,11 @@
 {
-  "name": "ms-inscripciones",
+  "name": "ms-usuarios",
   "version": "1.0.0",
+  "description": "Microservicio de usuarios, autenticación e inscripciones de la Plataforma de Cursos (LMS)",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "amqplib": "^0.10.9",
@@ -15,5 +17,14 @@
     "pg": "^8.23.1",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.8"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.1.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": ["<rootDir>/tests/env.js"],
+    "globalSetup": "<rootDir>/tests/globalSetup.js"
   }
 }

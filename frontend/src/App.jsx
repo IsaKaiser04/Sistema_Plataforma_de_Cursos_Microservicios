@@ -1,45 +1,49 @@
-import React, { useState } from 'react';
-import { MisEvaluaciones } from './components/MisEvaluaciones';
-import { CalificarEvaluacion } from './components/CalificarEvaluacion';
-import { CrearEvaluacion } from './components/CrearEvaluacion';
+import { lazy, Suspense } from 'react';
+import { Route, Routes } from 'react-router-dom';
+import RutaProtegida from './routes/RutaProtegida';
+import Layout from './components/Layout';
+import Login from './pages/auth/Login';
+import Registro from './pages/auth/Registro';
+import Inicio from './pages/Inicio';
+import Prohibido from './pages/Prohibido';
+import NoEncontrada from './pages/NoEncontrada';
 
-function App() {
-  const estudianteIdPrueba = "b1b2b3b4-1111-2222-3333-444455556666";
-  const evaluacionIdPrueba = "123e4567-e89b-12d3-a456-426614174000";
-  
-  // Estado para forzar la actualización de la tabla cuando creas una evaluación
-  const [refreshKey, setRefreshKey] = useState(0);
+// Se carga solo al entrar a su ruta: si esas pantallas tienen un error
+// (hoy CrearEvaluacion importa un servicio que no existe), el resto de la app sigue funcionando.
+const EvaluacionesDemo = lazy(() => import('./pages/evaluaciones/EvaluacionesDemo'));
 
-  const handleEvaluacionCreada = () => {
-    setRefreshKey(prev => prev + 1); // Incrementa para recargar MisEvaluaciones
-  };
-
+export default function App() {
   return (
-    <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif' }}>
-      <h1>Plataforma LMS - Módulo de Evaluaciones</h1>
-      <hr style={{ marginBottom: '20px' }} />
+    <Routes>
+      {/* Públicas */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/registro" element={<Registro />} />
+      <Route path="/403" element={<Prohibido />} />
 
-      <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        
-        {/* Columna Izquierda: Crear y Ver Evaluaciones */}
-        <div style={{ flex: '1', minWidth: '350px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <CrearEvaluacion onEvaluacionCreada={handleEvaluacionCreada} />
-          
-          {/* Pasamos refreshKey como 'key' para forzar el re-render y consulta al backend */}
-          <MisEvaluaciones key={refreshKey} estudianteId={estudianteIdPrueba} />
-        </div>
-
-        {/* Columna Derecha: Calificar Evaluación (Docente) */}
-        <div style={{ flex: '1', minWidth: '300px' }}>
-          <CalificarEvaluacion 
-            evaluacionId={evaluacionIdPrueba} 
-            onCalificacionExitosa={handleEvaluacionCreada} 
+      {/* Cualquier usuario con sesión */}
+      <Route element={<RutaProtegida />}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Inicio />} />
+          {/* Temporal hasta que evaluaciones pase a GraphQL */}
+          <Route
+            path="/evaluaciones-demo"
+            element={
+              <Suspense fallback={<p className="texto-suave">Cargando...</p>}>
+                <EvaluacionesDemo />
+              </Suspense>
+            }
           />
-        </div>
+        </Route>
+      </Route>
 
-      </div>
-    </div>
+      {/* Ejemplo para las pantallas por rol:
+      <Route element={<RutaProtegida roles={['DOCENTE']} />}>
+        <Route element={<Layout />}>
+          <Route path="/docente/cursos" element={<MisCursosDocente />} />
+        </Route>
+      </Route> */}
+
+      <Route path="*" element={<NoEncontrada />} />
+    </Routes>
   );
 }
-
-export default App;
