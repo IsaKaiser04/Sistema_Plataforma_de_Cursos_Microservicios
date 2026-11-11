@@ -11,6 +11,8 @@ const NOMBRE_ROL = {
 // cuando existan (catálogo, mis cursos, evaluaciones, notificaciones...).
 const MENU = [
   { ruta: '/', texto: 'Inicio', roles: ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'] },
+  { ruta: '/mis-cursos', texto: 'Mis cursos', roles: ['ESTUDIANTE'] },
+  { ruta: '/admin/usuarios', texto: 'Usuarios', roles: ['ADMINISTRADOR'] },
 ];
 
 export default function Layout() {

@@ -7,6 +7,8 @@ import Registro from './pages/auth/Registro';
 import Inicio from './pages/Inicio';
 import Prohibido from './pages/Prohibido';
 import NoEncontrada from './pages/NoEncontrada';
+import Usuarios from './pages/admin/Usuarios';
+import MisCursos from './pages/inscripciones/MisCursos';
 
 // Se carga solo al entrar a su ruta: si esas pantallas tienen un error
 // (hoy CrearEvaluacion importa un servicio que no existe), el resto de la app sigue funcionando.
@@ -36,12 +38,19 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Ejemplo para las pantallas por rol:
-      <Route element={<RutaProtegida roles={['DOCENTE']} />}>
+      {/* Solo ADMINISTRADOR. Las pantallas de otros roles se agregan igual:
+          <Route element={<RutaProtegida roles={['DOCENTE']} />}> ... */}
+      <Route element={<RutaProtegida roles={['ESTUDIANTE']} />}>
         <Route element={<Layout />}>
-          <Route path="/docente/cursos" element={<MisCursosDocente />} />
+          <Route path="/mis-cursos" element={<MisCursos />} />
         </Route>
-      </Route> */}
+      </Route>
+
+      <Route element={<RutaProtegida roles={['ADMINISTRADOR']} />}>
+        <Route element={<Layout />}>
+          <Route path="/admin/usuarios" element={<Usuarios />} />
+        </Route>
+      </Route>
 
       <Route path="*" element={<NoEncontrada />} />
     </Routes>
