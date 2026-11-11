@@ -1,22 +1,50 @@
 server:
-  port: 8083
+  port: ${SERVER_PORT:8083}
 
 spring:
+  application:
+    name: ms-evaluaciones
   datasource:
-    url: jdbc:postgresql://localhost:5432/db_evaluaciones
-    username: postgres
-    password: password
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:evaluaciones_db}
+    username: ${DB_USER:admin}
+    password: ${DB_PASSWORD:password}
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-  
-  # Configuración del Broker de Mensajes RabbitMQ
+        format_sql: true
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:lms}
+    password: ${RABBITMQ_PASSWORD:lms123}
+    listener:
+      simple:
+        default-requeue-rejected: false
+
+lms:
+  cursos:
+    service-url: ${CURSOS_SERVICE_URL:http://localhost:8081}
+    timeout: ${CURSOS_SERVICE_TIMEOUT:3s}
+  evaluaciones:
+    nota-minima: ${LMS_NOTA_MINIMA:7.0}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    rabbit:
+      enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

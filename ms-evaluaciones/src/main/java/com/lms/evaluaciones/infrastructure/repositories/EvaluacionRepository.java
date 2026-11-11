@@ -1,13 +1,14 @@
 package com.lms.evaluaciones.infrastructure.repositories;
 
-import com.lms.evaluaciones.core.models.Evaluacion;
+import com.lms.evaluaciones.domain.model.Evaluacion;
+import com.lms.evaluaciones.domain.model.EstadoEvaluacion;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+
 import java.util.List;
 import java.util.UUID;
 
-@Repository
 public interface EvaluacionRepository extends JpaRepository<Evaluacion, UUID> {
-    // Método para buscar evaluaciones asociadas a un curso específico mediante su UUID
-    List<Evaluacion> findByCursoId(UUID cursoId);
+    List<Evaluacion> findByCursoIdOrderByFechaCreacionAsc(UUID cursoId);
+    List<Evaluacion> findByCursoIdAndEstado(UUID cursoId, EstadoEvaluacion estado);
+    List<Evaluacion> findByIdIn(List<UUID> ids);
 }

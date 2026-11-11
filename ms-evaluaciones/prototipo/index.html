@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f7fb" />
+    <title>Evaluaciones | LMS</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="LMS Evaluaciones">
+        <span class="brand-mark">L</span>
+        <span>lumen<span class="brand-light"> / académico</span></span>
+      </a>
+      <div class="topbar-right">
+        <span class="prototype-tag"><span></span> Prototipo local</span>
+        <span class="avatar" id="avatar">D</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <p class="side-label">ESPACIO DE TRABAJO</p>
+        <a class="nav-item active" href="#evaluaciones"><span class="nav-icon">▦</span> Evaluaciones</a>
+        <a class="nav-item" href="#notas"><span class="nav-icon">◷</span> Notas finales</a>
+        <div class="side-bottom">
+          <div class="side-divider"></div>
+          <div class="user-mini"><span class="avatar small">U</span><span><b>Usuario de prueba</b><small>Sesión simulada</small></span></div>
+        </div>
+      </aside>
+
+      <main>
+        <section class="page-heading">
+          <div>
+            <p class="eyebrow">GESTIÓN ACADÉMICA</p>
+            <h1>Evaluaciones</h1>
+            <p class="subheading">Organiza actividades, califica y consulta el progreso del curso.</p>
+          </div>
+          <button class="button button-primary" id="new-toggle"><span>＋</span> Nueva evaluación</button>
+        </section>
+
+        <section class="notice">
+          <span class="notice-icon">i</span>
+          <p>Este prototipo llama directamente al microservicio local. No usa el gateway ni autentica usuarios; los roles e IDs son solo para probar permisos. Cursos e inscripciones deben existir en la copia local del servicio.</p>
+        </section>
+
+        <section class="connection-card">
+          <div class="section-title">
+            <div><h2>Conexión de prueba</h2><p>Simula las cabeceras que agrega el gateway en producción.</p></div>
+            <span class="connection-status"><i></i> API local</span>
+          </div>
+          <div class="connection-grid">
+            <label class="field"><span>Mi ID de usuario</span><input id="user-id" value="b1b2b3b4-1111-2222-3333-444455556666" autocomplete="off" /></label>
+            <label class="field"><span>Rol de prueba</span>
+              <select id="user-role"><option value="DOCENTE">Docente</option><option value="ESTUDIANTE">Estudiante</option><option value="ADMINISTRADOR">Administrador</option></select>
+            </label>
+            <label class="field"><span>ID del curso</span><input id="course-id" placeholder="UUID del curso" autocomplete="off" /></label>
+            <button class="button button-outline" id="load-button">Cargar curso</button>
+          </div>
+        </section>
+
+        <section class="form-card hidden" id="create-panel">
+          <div class="section-title"><div><h2>Nueva evaluación</h2><p>Se guardará como borrador.</p></div><button class="icon-button" id="close-form" aria-label="Cerrar">×</button></div>
+          <form id="create-form">
+            <div class="form-grid">
+              <label class="field wide"><span>Título</span><input name="titulo" placeholder="Ej. Control de lectura" maxlength="160" required /></label>
+              <label class="field"><span>Tipo</span><select name="tipo"><option value="EXAMEN">Examen</option><option value="TAREA">Tarea</option><option value="PROYECTO">Proyecto</option></select></label>
+              <label class="field"><span>Peso (%)</span><input name="peso" type="number" min="0.01" max="100" step="0.01" placeholder="25" required /></label>
+              <label class="field"><span>Nota máxima</span><input name="notaMaxima" type="number" min="0.01" max="10" step="0.1" value="10" required /></label>
+              <label class="field"><span>Apertura</span><input name="fechaApertura" type="datetime-local" required /></label>
+              <label class="field"><span>Cierre</span><input name="fechaCierre" type="datetime-local" required /></label>
+              <label class="field wide"><span>Descripción</span><textarea name="descripcion" rows="3" maxlength="2000" placeholder="Indicaciones para el estudiante"></textarea></label>
+            </div>
+            <div class="form-actions"><button type="button" class="button button-outline" id="cancel-form">Cancelar</button><button class="button button-primary" type="submit">Guardar borrador</button></div>
+          </form>
+        </section>
+
+        <section id="evaluaciones" class="content-section">
+          <div class="section-title list-heading"><div><h2>Evaluaciones del curso</h2><p id="course-caption">Selecciona un curso para comenzar.</p></div><button class="button button-quiet" id="refresh-button">↻ Actualizar</button></div>
+          <div id="message" class="message hidden" role="status"></div>
+          <div id="empty-state" class="empty-state"><div class="empty-icon">▤</div><h3>Sin evaluaciones por ahora</h3><p>Conecta un curso para ver sus actividades y calificaciones.</p></div>
+          <div class="evaluation-list" id="evaluation-list"></div>
+        </section>
+
+        <section id="notas" class="content-section final-section">
+          <div class="section-title"><div><h2>Notas finales</h2><p>Resultado calculado cuando el curso se marca como finalizado.</p></div><button class="button button-outline" id="final-button">Ver notas finales</button></div>
+          <div class="final-results" id="final-results"></div>
+        </section>
+        <footer>Prototipo de evaluaciones · LMS · <a href="/swagger-ui.html">Documentación de la API</a></footer>
+      </main>
+    </div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

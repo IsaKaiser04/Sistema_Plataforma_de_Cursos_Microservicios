@@ -1,12 +1,18 @@
-version: '3.8'
-
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: siged_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-lms}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-lms123}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   db_cursos:
     image: postgres:15-alpine
@@ -31,6 +37,13 @@ services:
       POSTGRES_DB: evaluaciones_db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
+    volumes:
+      - db_evaluaciones_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d evaluaciones_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   db_notificaciones:
     image: postgres:15-alpine
@@ -46,6 +59,8 @@ services:
     environment:
       - DB_HOST=db_cursos
       - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER:-lms}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-lms123}
     depends_on:
       - db_cursos
       - rabbitmq
@@ -56,6 +71,8 @@ services:
     environment:
       - DB_HOST=db_inscripciones
       - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER:-lms}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-lms123}
     depends_on:
       - db_inscripciones
       - rabbitmq
@@ -68,3 +85,48 @@ services:
     depends_on:
       - ms-cursos
       - ms-inscripciones
+
+  ms-evaluaciones:
+    profiles: ["evaluaciones"]
+    build: ./ms-evaluaciones
+    container_name: siged_ms_evaluaciones
+    environment:
+      SERVER_PORT: 8083
+      DB_HOST: db_evaluaciones
+      DB_PORT: 5432
+      DB_NAME: evaluaciones_db
+      DB_USER: admin
+      DB_PASSWORD: password
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-lms}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-lms123}
+      CURSOS_SERVICE_URL: http://ms-cursos:8081
+      CURSOS_SERVICE_TIMEOUT: 3s
+      LMS_NOTA_MINIMA: 7.0
+    ports:
+      - "127.0.0.1:8083:8083"
+    depends_on:
+      db_evaluaciones:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+
+  prototipo-evaluaciones:
+    profiles: ["prototipo-evaluaciones"]
+    build: ./ms-evaluaciones/prototipo
+    container_name: siged_prototipo_evaluaciones
+    ports:
+      - "127.0.0.1:5174:80"
+    depends_on:
+      ms-evaluaciones:
+        condition: service_healthy
+
+volumes:
+  db_evaluaciones_data:

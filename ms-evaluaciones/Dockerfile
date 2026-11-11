@@ -1,14 +1,14 @@
-# Usamos una imagen ligera de OpenJDK 17
-FROM openjdk:17-jdk-slim
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /workspace
+COPY pom.xml .
+COPY src ./src
+RUN mvn -B -DskipTests package
 
-# Directorio de trabajo dentro del contenedor
+FROM eclipse-temurin:17-jre
 WORKDIR /app
-
-# Copiamos el archivo JAR generado por Maven hacia el contenedor
-COPY target/ms-evaluaciones-0.0.1-SNAPSHOT.jar app.jar
-
-# Exponemos el puerto del microservicio
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /workspace/target/ms-evaluaciones-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8083
-
-# Comando para ejecutar la aplicación al iniciar el contenedor
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
