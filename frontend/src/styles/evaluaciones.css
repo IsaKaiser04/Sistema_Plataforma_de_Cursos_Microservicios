@@ -1,0 +1,232 @@
+/* Pantallas de evaluaciones. Usan las variables de index.css (frontend.md, P3). */
+
+.eval-titulo-pagina {
+  margin-top: 12px;
+}
+
+.eval-subtitulo {
+  margin: 12px 0 4px;
+}
+
+.eval-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+}
+
+.eval-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+}
+
+.eval-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.eval-titulo {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.eval-descripcion {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.eval-periodo {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.eval-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+/* ---------- Formulario del docente ---------- */
+
+.eval-formulario textarea,
+.eval-entrega textarea {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-weight: 400;
+  padding: 10px 12px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  resize: vertical;
+}
+
+.eval-formulario textarea:focus,
+.eval-entrega textarea:focus {
+  outline: 2px solid var(--color-primario);
+  outline-offset: -1px;
+  border-color: var(--color-primario);
+}
+
+.eval-fila {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 16px;
+}
+
+.campo input:disabled {
+  background: var(--color-fondo);
+  color: var(--color-texto-suave);
+}
+
+.eval-preguntas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.eval-preguntas legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.eval-preguntas > .boton {
+  align-self: flex-start;
+}
+
+.eval-pregunta-editable {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.eval-pregunta-editable .campo {
+  flex: 1;
+}
+
+/* ---------- Entregas y calificación ---------- */
+
+.eval-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.eval-estudiantes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eval-estudiante {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  font: inherit;
+  text-align: left;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  cursor: pointer;
+}
+
+.eval-estudiante:hover {
+  background: var(--color-info-fondo);
+}
+
+.eval-estudiante-activo {
+  border-color: var(--color-primario);
+  box-shadow: 0 0 0 1px var(--color-primario);
+}
+
+.eval-estudiante-nombre {
+  font-weight: 600;
+}
+
+.eval-estudiante .texto-suave {
+  font-size: 0.85rem;
+}
+
+.eval-entrega {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.eval-respuestas {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.eval-enunciado {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.eval-respuesta {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radio);
+  background: var(--color-fondo);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.eval-resultado {
+  align-self: flex-start;
+  margin: 6px 0 2px;
+}
+
+.eval-error-campo {
+  color: var(--color-error);
+}
+
+.eval-nota p {
+  margin: 0;
+}
+
+.eval-nota p + p {
+  margin-top: 6px;
+}
+
+@media (max-width: 720px) {
+  .eval-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .eval-cabecera {
+    flex-direction: column;
+  }
+
+  .eval-pregunta-editable {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .eval-tarjeta,
+  .eval-entrega {
+    padding: 16px;
+  }
+}

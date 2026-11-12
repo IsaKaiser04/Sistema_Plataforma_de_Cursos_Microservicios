@@ -181,8 +181,6 @@ function aModuloInput(modulo) {
   };
 }
 
-const EVAL_URL = import.meta.env.VITE_EVAL_REST_URL || 'http://localhost:8083/api/v1/evaluaciones';
-
 export const cursosApi = {
   listarCatalogoActivo: async () => (await consultar(CATALOGO_CURSOS)).catalogoCursos,
   listarTodos: async () => (await consultar(CURSOS)).cursos,
@@ -210,31 +208,4 @@ export const cursosApi = {
   },
   cancelarInscripcion: async (cursoId, inscripcionId) =>
     (await mutar(CANCELAR_INSCRIPCION, { id: inscripcionId })).cancelarInscripcion,
-
-  // Evaluaciones: siguen llamando a ms-evaluaciones por REST hasta que su módulo pase al gateway (T6 de Josué).
-  listarEvaluacionesCurso: async (cursoId) => {
-    try {
-      const res = await fetch(`${EVAL_URL}/curso/${cursoId}`);
-      if (!res.ok) return [];
-      return await res.json();
-    } catch {
-      return JSON.parse(localStorage.getItem(`eval_${cursoId}`) || '[]');
-    }
-  },
-  crearEvaluacionCurso: async (evaluacion) => {
-    try {
-      const res = await fetch(EVAL_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(evaluacion),
-      });
-      if (!res.ok) throw new Error();
-      return await res.json();
-    } catch {
-      const prev = JSON.parse(localStorage.getItem(`eval_${evaluacion.cursoId}`) || '[]');
-      const nueva = { ...evaluacion, id: crypto.randomUUID(), estado: 'PUBLICADA' };
-      localStorage.setItem(`eval_${evaluacion.cursoId}`, JSON.stringify([...prev, nueva]));
-      return nueva;
-    }
-  },
 };

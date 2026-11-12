@@ -245,3 +245,126 @@ extend type Mutation {
   "Usuario con sesión: marca todas como leídas y devuelve cuántas cambiaron"
   marcarTodasLeidas: Int!
 }
+
+# ---------------------------------------------------------------
+# Módulo evaluaciones (Josué) -> ms-evaluaciones
+# Preguntas abiertas, una entrega por estudiante y nota total de 0 a 10.
+# Se agrega con "extend" para no tocar los tipos de otros módulos.
+# ---------------------------------------------------------------
+
+enum TipoEvaluacion {
+  EXAMEN
+  TAREA
+  PROYECTO
+}
+
+enum EstadoEvaluacion {
+  BORRADOR
+  PUBLICADA
+  CERRADA
+}
+
+type Pregunta {
+  id: ID!
+  enunciado: String!
+  orden: Int!
+}
+
+type Evaluacion {
+  id: ID!
+  cursoId: ID!
+  titulo: String!
+  descripcion: String
+  tipo: TipoEvaluacion!
+  estado: EstadoEvaluacion!
+  "Porcentaje de la nota final del curso"
+  peso: Float!
+  "Siempre 10"
+  notaMaxima: Float!
+  fechaApertura: String!
+  fechaCierre: String!
+  moduloId: ID
+  fechaCreacion: String
+  preguntas: [Pregunta!]!
+}
+
+type Respuesta {
+  preguntaId: ID!
+  enunciado: String
+  respuesta: String!
+}
+
+type Entrega {
+  id: ID!
+  evaluacionId: ID!
+  estudianteId: ID!
+  fechaEntrega: String!
+  respuestas: [Respuesta!]!
+}
+
+type Calificacion {
+  id: ID!
+  evaluacionId: ID!
+  estudianteId: ID!
+  cursoId: ID!
+  tituloEvaluacion: String
+  nota: Float!
+  "Mínimo para aprobar que aplica ms-evaluaciones a este curso"
+  notaMinima: Float!
+  "Lo decide ms-evaluaciones: nota >= notaMinima"
+  aprobado: Boolean!
+  retroalimentacion: String
+  calificadoPor: ID
+  fechaCalificacion: String
+}
+
+input PreguntaInput {
+  enunciado: String!
+  orden: Int!
+}
+
+input EvaluacionInput {
+  cursoId: ID!
+  titulo: String!
+  descripcion: String
+  tipo: TipoEvaluacion!
+  peso: Float!
+  "Fecha y hora de Ecuador, sin zona: 2026-11-12T08:00:00"
+  fechaApertura: String!
+  fechaCierre: String!
+  preguntas: [PreguntaInput!]!
+}
+
+input RespuestaInput {
+  preguntaId: ID!
+  respuesta: String!
+}
+
+input CalificacionInput {
+  estudianteId: ID!
+  "Nota total de 0 a 10, un decimal"
+  nota: Float!
+  retroalimentacion: String
+}
+
+extend type Query {
+  "Con sesión. El estudiante solo ve las publicadas y debe estar habilitado en el curso"
+  evaluacionesCurso(cursoId: ID!): [Evaluacion!]!
+  "DOCENTE del curso o ADMINISTRADOR: todas las entregas. ESTUDIANTE: solo la suya"
+  entregasEvaluacion(evaluacionId: ID!): [Entrega!]!
+  "DOCENTE del curso o ADMINISTRADOR"
+  calificacionesEvaluacion(evaluacionId: ID!): [Calificacion!]!
+  "Solo ESTUDIANTE: sus propias calificaciones (usa el usuario de la sesión)"
+  misCalificaciones(cursoId: ID): [Calificacion!]!
+}
+
+extend type Mutation {
+  "DOCENTE del curso o ADMINISTRADOR. Queda en BORRADOR"
+  crearEvaluacion(input: EvaluacionInput!): Evaluacion!
+  "DOCENTE del curso o ADMINISTRADOR"
+  publicarEvaluacion(id: ID!): Evaluacion!
+  "Solo ESTUDIANTE, una sola vez y dentro del plazo"
+  entregarEvaluacion(evaluacionId: ID!, respuestas: [RespuestaInput!]!): Entrega!
+  "DOCENTE del curso o ADMINISTRADOR"
+  calificarEntrega(evaluacionId: ID!, input: CalificacionInput!): Calificacion!
+}

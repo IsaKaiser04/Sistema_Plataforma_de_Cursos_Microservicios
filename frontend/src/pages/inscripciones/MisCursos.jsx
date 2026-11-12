@@ -72,6 +72,11 @@ function TarjetaInscripcion({ inscripcion, alCancelar, cancelando }) {
               Ver contenido
             </Link>
           )}
+          {inscripcion.estado === 'ACTIVA' && (
+            <Link to={`/cursos/${inscripcion.cursoId}/evaluaciones`} className="boton boton-secundario">
+              Evaluaciones
+            </Link>
+          )}
           {sePuedeCancelar && (
             <button
               type="button"
