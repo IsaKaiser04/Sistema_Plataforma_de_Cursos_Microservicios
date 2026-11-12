@@ -6,11 +6,18 @@ const {
 } = require("../../lib/validacion");
 const { notificar, nombreCurso, inscritosDe } = require("../../lib/notificar");
 
+const dos = (n) => String(n).padStart(2, "0");
+
+// Acepta "2026-11-25T23:59:00" o la lista que envía Jackson sin configurar
+// ([2026, 11, 25, 23, 59, 0]). Devuelve "2026-11-25 23:59" o null.
 function formatearFecha(valor) {
-  const d = new Date(valor);
-  if (!valor || Number.isNaN(d.getTime())) return null;
-  // "2026-11-25T23:59:00" -> "2026-11-25 23:59"
-  return String(valor).replace("T", " ").slice(0, 16);
+  if (Array.isArray(valor)) {
+    const [a, m, d, h = 0, min = 0] = valor;
+    if (![a, m, d, h, min].every(Number.isInteger)) return null;
+    return `${a}-${dos(m)}-${dos(d)} ${dos(h)}:${dos(min)}`;
+  }
+  if (typeof valor !== "string" || Number.isNaN(new Date(valor).getTime())) return null;
+  return valor.replace("T", " ").slice(0, 16);
 }
 
 // evaluacion.publicada: aviso a todos los inscritos del curso
@@ -50,4 +57,4 @@ async function onEvaluacionCalificada(db, e) {
   return `${n} notificación(es)`;
 }
 
-module.exports = { onEvaluacionPublicada, onEvaluacionCalificada };
+module.exports = { onEvaluacionPublicada, onEvaluacionCalificada, formatearFecha };

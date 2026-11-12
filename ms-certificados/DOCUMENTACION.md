@@ -1,7 +1,5 @@
 # Documentación ms-certificados (certificados y notificaciones) — Plataforma de Cursos LMS
 
-11 de noviembre de 2026 · María Chuico
-
 ## Resumen
 
 El microservicio es `ms-certificados`, y su función principal es emitir el certificado del estudiante que aprueba un curso. Las notificaciones no son un microservicio aparte: son alertas que el mismo servicio guarda cuando pasa algo que afecta al estudiante. Todo comparte un contenedor, la base `notificaciones_db` y la conexión a RabbitMQ.
@@ -17,7 +15,7 @@ El servicio solo consume eventos: no publica ninguno y no llama a otros servicio
 | --- | --- |
 | Responsable | María Chuico |
 | Carpeta del repo | `ms-certificados/` |
-| Tecnología | Node.js 22, Express 4, pg, amqplib, pdfkit, qrcode |
+| Tecnología | Node.js 22, Express 4, pg, amqplib |
 | Puerto | 3000 interno, 8004 en local |
 | Base de datos | `db_notificaciones` / `notificaciones_db` (PostgreSQL 16) |
 | Cola propia | `lms.notificaciones.queue`, errores en `lms.notificaciones.dlq` |
@@ -35,7 +33,7 @@ Se toman las opciones recomendadas del plan.
 | P4. Rutas | `/api/v1/notificaciones` y `/api/v1/certificados` |
 | P5. Código de verificación | `LMS-<codigoCurso sin guiones>-<4 dígitos por curso>`, ej. `LMS-SD202601-0001` |
 | P6. Avisar nota a reprobados | Sí, notificación `NOTA_FINAL` |
-| P7. PDF del certificado | **Sí (cambio del 11 de noviembre).** Se genera a pedido con los datos guardados, con QR a la verificación pública |
+| P7. PDF del certificado | No; se muestra en una página del frontend (T8 descartada) |
 | P8. Pruebas | Manuales (curl y panel de RabbitMQ) + Jest para los manejadores |
 | P9. Certificados aparte | Un solo servicio, renombrado ms-certificados, con los dos módulos |
 | P10. Borrar notificaciones viejas | No |
@@ -85,9 +83,7 @@ Emite un certificado cuando recibe `nota.final.calculada` con `aprobado: true`. 
 3. Si `aprobado` es `false`, no crea certificado; crea la notificación `NOTA_FINAL` con la nota.
 4. El certificado y su notificación se guardan en una sola transacción.
 5. El código es correlativo por curso: el primero de `SD-2026-01` es `LMS-SD202601-0001`.
-6. Un estudiante solo ve sus propios certificados (cabecera `X-User-Id`, si no coincide responde 403 `PROHIBIDO`; si falta, 401 `NO_AUTENTICADO`). La verificación por código es pública.
-7. El correlativo se calcula con un bloqueo por curso (`pg_advisory_xact_lock`) dentro de la transacción, para que dos emisiones simultáneas no repitan número.
-8. Si el evento no trae `codigoCurso` o `tituloCurso`, se toman de la copia local `cursos`.
+6. Un estudiante solo ve sus propios certificados (cabecera `X-User-Id`, si no coincide responde 403). La verificación por código es pública.
 
 ### Tabla `certificados`
 
@@ -100,7 +96,7 @@ Emite un certificado cuando recibe `nota.final.calculada` con `aprobado: true`. 
 | `codigo_curso` | VARCHAR(30) | Copiado del evento |
 | `titulo_curso` | VARCHAR(200) | Copiado del evento |
 | `nota_final` | NUMERIC(3,1) | De 0 a 10 |
-| `fecha_emision` | TIMESTAMPTZ | Al crear |
+| `fecha_emision` | TIMESTAMP | Al crear |
 
 ```sql
 CREATE TABLE IF NOT EXISTS certificados (
@@ -110,8 +106,8 @@ CREATE TABLE IF NOT EXISTS certificados (
   estudiante_id UUID NOT NULL,
   codigo_curso VARCHAR(30) NOT NULL,
   titulo_curso VARCHAR(200) NOT NULL,
-  nota_final NUMERIC(3,1) NOT NULL CHECK (nota_final BETWEEN 0 AND 10),
-  fecha_emision TIMESTAMPTZ NOT NULL DEFAULT now(),
+  nota_final NUMERIC(3,1) NOT NULL,
+  fecha_emision TIMESTAMP NOT NULL DEFAULT now(),
   UNIQUE (curso_id, estudiante_id)
 );
 ```
@@ -122,7 +118,6 @@ CREATE TABLE IF NOT EXISTS certificados (
 | --- | --- | --- | --- |
 | GET | `/api/v1/certificados/estudiante/:estudianteId` | El estudiante | Lista de sus certificados |
 | GET | `/api/v1/certificados/:id` | El dueño | Detalle; 403 si no es suyo |
-| GET | `/api/v1/certificados/:id/pdf?nombre=` | El dueño | PDF (A4 horizontal) para descargar; 403 si no es suyo |
 | GET | `/api/v1/certificados/verificar/:codigo` | Público | Datos del certificado o 404 `NO_ENCONTRADO` |
 
 Respuesta de un certificado:
@@ -136,19 +131,12 @@ Respuesta de un certificado:
   "codigoCurso": "SD-2026-01",
   "tituloCurso": "Sistemas Distribuidos",
   "notaFinal": 8.7,
-  "fechaEmision": "2026-12-20T15:00:00.000Z",
+  "fechaEmision": "2026-12-20T10:00:00",
   "url": "http://localhost:5173/certificados/LMS-SD202601-0001"
 }
 ```
 
-### PDF del certificado
-
-- Se genera en el momento con `pdfkit` (`src/pdf/certificadoPdf.js`); no se guardan archivos. El mismo certificado siempre da el mismo contenido.
-- Lleva: nombre del estudiante, curso, código del curso, nota final, fecha de emisión, código de verificación y un QR que abre `FRONTEND_URL/certificados/<codigo>`.
-- El evento `nota.final.calculada` no trae el nombre del estudiante, así que el gateway lo toma de ms-usuarios (`me`) y lo envía en `?nombre=`. Si ms-usuarios no responde, el PDF sale sin nombre.
-- En GraphQL es `certificadoPdf(id): ArchivoPdf` y el contenido viaja en base64, para que el frontend siga hablando solo con el gateway.
-
-No entra en el alcance: firma digital ni revocar certificados.
+No entra en el alcance: PDF, firma digital ni revocar certificados.
 
 ## Notificaciones (alertas)
 
@@ -199,11 +187,9 @@ Respuesta de una notificación:
   "tipo": "CERTIFICADO",
   "mensaje": "Aprobaste Sistemas Distribuidos con 8.7. Verifica tu certificado en http://localhost:5173/certificados/LMS-SD202601-0001",
   "estado": "ENVIADA",
-  "fecha": "2026-12-20T15:00:02.000Z"
+  "fecha": "2026-12-20T10:00:02"
 }
 ```
-
-Las fechas de las respuestas van en ISO 8601 UTC (`...Z`).
 
 Error común (igual en todos los servicios del grupo):
 
@@ -211,14 +197,6 @@ Error común (igual en todos los servicios del grupo):
 { "timestamp": "2026-11-10T10:15:30", "status": 400, "error": "DATOS_INVALIDOS",
   "mensaje": "estudianteId no es un UUID válido", "ruta": "/api/v1/notificaciones/abc" }
 ```
-
-| Código | `error` | Cuándo |
-| --- | --- | --- |
-| 400 | `DATOS_INVALIDOS` | UUID o id mal formado, `estado` distinto de `ENVIADA`/`LEIDA` |
-| 401 | `NO_AUTENTICADO` | Falta `X-User-Id` en una ruta que no es pública |
-| 403 | `PROHIBIDO` | El recurso es de otro estudiante |
-| 404 | `NO_ENCONTRADO` | No existe la notificación, el certificado o la ruta |
-| 500 | `ERROR_INTERNO` | Error no previsto (se registra en el log) |
 
 No entra en el alcance: correos, notificaciones push, WebSockets ni avisos para docentes.
 
@@ -233,9 +211,7 @@ El servicio escucha en el exchange compartido `lms.eventos.exchange` (topic, dur
 | Dead letter | exchange `lms.notificaciones.dlx` (fanout) → cola `lms.notificaciones.dlq` |
 | Publica | Nada |
 
-Cambio respecto a la v1: al arrancar el servicio quita el binding de `certificado.emitido` (el certificado ahora nace aquí) y agrega `acceso.habilitado`, `inscripcion.#`, `evaluacion.#` y `nota.final.calculada`.
-
-Claves de idempotencia (`evento_id` de la notificación): la bienvenida usa `inscripcionId`, así un `acceso.habilitado` repetido con otro `eventoId` no genera una segunda; `evaluacion.publicada` usa `eventoId` o, si falta, `evaluacionId`; el resto usa `eventoId`. El certificado además es único por `(curso_id, estudiante_id)`.
+Cambio respecto a lo actual: se quita el binding de `certificado.emitido`, porque el certificado ahora nace aquí, y se agregan `acceso.habilitado`, `inscripcion.#`, `evaluacion.#` y `nota.final.calculada`.
 
 ### Reglas del consumidor
 
@@ -243,7 +219,6 @@ Claves de idempotencia (`evento_id` de la notificación): la bienvenida usa `ins
 - JSON roto, UUID inválido o campo obligatorio faltante: rechaza sin reintentar y el mensaje va a la DLQ.
 - Error temporal (BD caída): devuelve el mensaje a la cola para reintentar.
 - Si se cae RabbitMQ, reconecta solo.
-- Cada evento se procesa en una transacción (`BEGIN`/`COMMIT`); con `prefetch(1)` se consume de a uno.
 
 ### Payloads que usa
 
@@ -302,32 +277,28 @@ ms-certificados/
 ├── .env.example
 ├── docker-compose.local.yml      # Postgres + este servicio; usa el RabbitMQ que ya corre
 ├── DOCUMENTACION.md
-├── src/
-│   ├── index.js                  # arranca Express, BD y RabbitMQ
-│   ├── app.js                    # Express: /health, rutas y errores
-│   ├── config/env.js             # lee las variables de entorno
-│   ├── db/
-│   │   ├── pool.js               # pool y enTransaccion()
-│   │   └── schema.js             # CREATE TABLE notificaciones, inscritos, cursos, certificados
-│   ├── messaging/
-│   │   ├── conexion.js           # conexión y reconexión
-│   │   └── consumidor.js         # cola, bindings, DLQ, ack/nack
-│   ├── handlers/
-│   │   ├── index.js              # manejadorPara(routingKey)
-│   │   ├── notificaciones/       # inscripcion.js (creada, acceso, rechazada, cancelada), curso.js, evaluacion.js
-│   │   └── certificados/
-│   │       └── notaFinal.js      # nota.final.calculada
-│   ├── routes/
-│   │   ├── notificaciones.js
-│   │   └── certificados.js
-│   ├── middleware/
-│   │   ├── duenio.js             # compara X-User-Id
-│   │   └── errores.js            # formato de error común
-│   └── lib/                      # validacion.js, notificar.js, estado.js, util.js
-└── tests/                        # Jest: handlers.test.js, consumidor.test.js, fakeDb.js
+└── src/
+    ├── index.js                  # arranca BD, RabbitMQ y Express
+    ├── config/env.js             # lee las variables de entorno
+    ├── db/
+    │   ├── pool.js
+    │   └── schema.js             # CREATE TABLE notificaciones, inscritos, cursos, certificados
+    ├── messaging/
+    │   ├── conexion.js           # conexión y reconexión
+    │   └── consumidor.js         # cola, bindings, DLQ y manejadorPara()
+    ├── handlers/
+    │   ├── notificaciones/       # inscripcion, acceso, curso, evaluacion
+    │   └── certificados/
+    │       └── notaFinal.js      # nota.final.calculada
+    ├── routes/
+    │   ├── notificaciones.js
+    │   └── certificados.js
+    └── middleware/
+        ├── duenio.js             # compara X-User-Id
+        └── errores.js            # formato de error común
 ```
 
-El `start` del `package.json` es `node src/index.js`; `npm test` corre Jest.
+Cambia el `start` del `package.json` a `node src/index.js`.
 
 ### Variables de entorno
 
@@ -341,7 +312,7 @@ El `start` del `package.json` es `node src/index.js`; `npm test` corre Jest.
 
 ### Dockerfile
 
-Ya actualizado: copia solo `src/`, instala sin dependencias de desarrollo y tiene healthcheck.
+El actual sirve; solo hace falta que el `CMD` apunte al nuevo `index.js` y agregar el healthcheck.
 
 ```dockerfile
 FROM node:22-alpine
@@ -350,8 +321,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY src ./src
 EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+HEALTHCHECK CMD wget -qO- http://localhost:3000/health || exit 1
 CMD ["node", "src/index.js"]
 ```
 
@@ -391,25 +361,17 @@ El plan dice `feature/ms-notificaciones-<tema>` desde `develop`, pero la guía d
 
 Se hace una tarea por vez, en este orden, y se marca al terminar. Después de cada una se actualiza `DOCUMENTACION.md`.
 
-- [x] **T1.** Separar `index.js` en la estructura de carpetas, sin cambiar comportamiento. Las pruebas 1 a 6 de `DOCUMENTACION.md` dan el mismo resultado.
-- [x] **T2.** Bienvenida con `acceso.habilitado`; `inscripcion.creada` solo registra al inscrito. El estudiante recibe una sola bienvenida.
-- [x] **T3.** Manejar `inscripcion.rechazada` y `inscripcion.cancelada`. Un rechazado no recibe "el curso ha comenzado".
-- [x] **T4.** `evaluacion.publicada` avisa a todos los inscritos. Con tres inscritos hay tres notificaciones.
-- [x] **T5.** Crear la tabla `certificados` al arrancar.
-- [x] **T6.** Manejador de `nota.final.calculada` y quitar `certificado.emitido`.
-- [x] **T7.** Endpoints de certificados.
-- [x] **T9.** Contador de no leídas, marcar todas y rutas `/api/v1/...`.
-- [x] **T10.** Validar `X-User-Id` (403 si no es el dueño).
-- [x] **T11.** Formato de error común.
-- [x] **T8.** PDF del certificado (reactivada): endpoint `/pdf`, `certificadoPdf` en el gateway y botón "Descargar PDF" en Mis certificados.
-- [x] **T12.** Pruebas (tabla siguiente) con Jest para los manejadores.
-
-### Estado de las pruebas (11 de noviembre)
-
-- **Jest:** `npm test` → 33 pruebas pasan (manejadores de cada evento, código de verificación, duplicados, validaciones, y consumidor: JSON roto a DLQ, BD caída se reintenta).
-- **Flujo completo con RabbitMQ y PostgreSQL reales** (eventos publicados en `lms.eventos.exchange`): el estudiante aprobado recibió en orden `INSCRIPCION`, `CURSO_INICIADO`, `EVALUACION_NUEVA`, `NOTA`, `CURSO_FINALIZADO`, `CERTIFICADO`; un `acceso.habilitado` repetido no duplicó la bienvenida; el rechazado solo recibió `INSCRIPCION_RECHAZADA`; tres `nota.final.calculada` aprobados del mismo alumno dejaron un solo `LMS-SD202601-0001`; el reprobado recibió `NOTA_FINAL`; el JSON roto quedó en la DLQ.
-- **REST con curl:** 200 en lista, detalle y verificación pública; 403 al pedir lo de otro estudiante; 401 sin `X-User-Id`; 404 `NO_ENCONTRADO` en código falso; marcar todas deja `{ "total": 0 }`.
-- Falta para el informe: capturas y la prueba de caída del servicio con Docker.
+- [ ] **T1.** Separar `index.js` en la estructura de carpetas, sin cambiar comportamiento. Las pruebas 1 a 6 de `DOCUMENTACION.md` dan el mismo resultado.
+- [ ] **T2.** Bienvenida con `acceso.habilitado`; `inscripcion.creada` solo registra al inscrito. El estudiante recibe una sola bienvenida.
+- [ ] **T3.** Manejar `inscripcion.rechazada` y `inscripcion.cancelada`. Un rechazado no recibe "el curso ha comenzado".
+- [ ] **T4.** `evaluacion.publicada` avisa a todos los inscritos. Con tres inscritos hay tres notificaciones.
+- [ ] **T5.** Crear la tabla `certificados` al arrancar.
+- [ ] **T6.** Manejador de `nota.final.calculada` y quitar `certificado.emitido`.
+- [ ] **T7.** Endpoints de certificados.
+- [ ] **T9.** Contador de no leídas, marcar todas y rutas `/api/v1/...`.
+- [ ] **T10.** Validar `X-User-Id` (403 si no es el dueño).
+- [ ] **T11.** Formato de error común.
+- [ ] **T12.** Pruebas (tabla siguiente) con Jest para los manejadores.
 
 ### Pruebas que se guardan para el informe
 
@@ -434,11 +396,7 @@ Cada una con captura (Postman o panel de RabbitMQ) y tiempo.
 ```bash
 # levantar este servicio y su base (RabbitMQ debe estar corriendo aparte, usuario lms)
 cd ms-certificados
-cp .env.example .env
 docker compose -f docker-compose.local.yml up -d --build
-
-# pruebas unitarias
-npm install && npm test
 
 # verificar que responde
 curl http://localhost:8004/health
@@ -449,12 +407,6 @@ curl -H "X-User-Id: <estudianteId>" \
 ```
 
 Los eventos de prueba se publican desde el panel `http://localhost:15672` (Exchanges → `lms.eventos.exchange` → Publish message), con la routing key y el JSON de la sección de eventos.
-
-### Pendientes detectados en otros servicios
-
-- **ms-evaluaciones** publica hoy en el exchange `lms.exchange` con la routing key `evaluacion.aprobada`. Para que llegue el certificado debe publicar en `lms.eventos.exchange` los eventos `evaluacion.publicada`, `evaluacion.calificada` y `nota.final.calculada` con los payloads de arriba.
-- **RabbitMQ** local no tiene el usuario `lms`/`lms123`; hay que crearlo (o definirlo en el compose raíz) para que el contenedor se conecte.
-- **Compose raíz:** aún no tiene el bloque `ms-certificados` ni el healthcheck de `db_notificaciones` y `rabbitmq`.
 
 ### Terminado cuando
 

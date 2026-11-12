@@ -1,0 +1,16 @@
+# Une ms-certificados al sistema que levanta el docker-compose.yml de la raíz.
+# Uso (desde ms-certificados/):
+#   docker compose -f docker-compose.local.yml -f docker-compose.grupo.yml up -d --build
+# RabbitMQ del grupo solo escucha en 127.0.0.1, por eso el contenedor entra por la red Docker
+# del grupo y lo encuentra por su nombre de servicio (rabbitmq).
+services:
+  ms-certificados:
+    environment:
+      RABBIT_URL: amqp://lms:lms123@rabbitmq:5672
+      FRONTEND_URL: http://localhost:5173
+    networks: [default, grupo]
+
+networks:
+  grupo:
+    external: true
+    name: sistema_plataforma_de_cursos_microservicios_default

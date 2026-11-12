@@ -127,6 +127,16 @@ describe("evaluaciones", () => {
     expect(n.params[4]).toContain("2026-11-25 23:59");
   });
 
+  test.each([
+    ["2026-11-25T23:59:00", "2026-11-25 23:59"],
+    [[2026, 11, 25, 23, 59, 0, 123], "2026-11-25 23:59"],
+    [[2026, 1, 5], "2026-01-05 00:00"],
+    ["no es fecha", null],
+    [undefined, null],
+  ])("formatearFecha(%p) -> %p", (entrada, esperado) => {
+    expect(ev.formatearFecha(entrada)).toBe(esperado);
+  });
+
   test("evaluacion.calificada exige nota", async () => {
     await expect(ev.onEvaluacionCalificada(fakeDb(), { estudianteId: EST })).rejects.toBeInstanceOf(
       EventoInvalido
