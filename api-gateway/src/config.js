@@ -32,6 +32,8 @@ const config = {
   corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((o) => o.trim()),
   // P3: tiempo límite de las llamadas a los servicios
   timeoutMs: 5000,
+  // ms-evaluaciones puede tardar más: la primera vez que ve un curso se lo pide a ms-cursos.
+  timeoutEvaluacionesMs: Number(process.env.EVALUACIONES_TIMEOUT_MS || 15000),
   servicios: {
     usuarios: obligatoria('USUARIOS_URL'),
     // Los demás se vuelven obligatorios cuando cada integrante agregue su módulo

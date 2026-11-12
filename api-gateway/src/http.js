@@ -3,7 +3,7 @@ const { servicioNoDisponible, desdeRespuesta } = require('./errors');
 
 // Llama a un microservicio con tiempo límite. Si hay usuario en el contexto,
 // le pasa X-User-Id y X-User-Rol (el gateway es el único que las pone).
-async function llamar(servicio, baseUrl, ruta, { method = 'GET', body, usuario } = {}) {
+async function llamar(servicio, baseUrl, ruta, { method = 'GET', body, usuario, timeoutMs = config.timeoutMs } = {}) {
   const headers = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (usuario) {
@@ -12,7 +12,7 @@ async function llamar(servicio, baseUrl, ruta, { method = 'GET', body, usuario }
   }
 
   const controlador = new AbortController();
-  const temporizador = setTimeout(() => controlador.abort(), config.timeoutMs);
+  const temporizador = setTimeout(() => controlador.abort(), timeoutMs);
 
   let respuesta;
   let texto;
@@ -25,7 +25,7 @@ async function llamar(servicio, baseUrl, ruta, { method = 'GET', body, usuario }
     });
     texto = await respuesta.text();
   } catch (error) {
-    const motivo = error.name === 'AbortError' ? `no respondió en ${config.timeoutMs} ms` : error.message;
+    const motivo = error.name === 'AbortError' ? `no respondió en ${timeoutMs} ms` : error.message;
     console.error(`[gateway] ${method} ${servicio}${ruta}: ${motivo}`);
     throw servicioNoDisponible(servicio);
   } finally {
